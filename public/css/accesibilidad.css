@@ -1,0 +1,56 @@
+/* Superficies de lectura sólidas y contraste comprobable en el tema claro. */
+:root[data-theme=light] {
+  --base: #f4ecdf;
+  --surface: #fffaf2;
+  --raised: #eaddcb;
+  --ink: #3b281f;
+  --muted: #645143;
+  --accent: #81431e;
+  --line: #79533a50;
+  --input: #fffdf8;
+  --glass: rgba(255, 250, 241, .93);
+  --glass-top: rgba(255, 255, 255, .82);
+  --glass-bottom: rgba(255, 255, 255, .16);
+  --edge: #ddcbb6;
+  --contact: #245132;
+}
+:root[data-theme=light] .cabecera nav a,
+:root[data-theme=light] .cabecera nav .enlace,
+:root[data-theme=light] .pie-grid>div>a:not(.logo),
+:root[data-theme=light] .producto-final small,
+:root[data-theme=light] .pie-legal,
+:root[data-theme=light] .catalogo-nota { color: #645143; }
+:root[data-theme=light] .cabecera nav a[aria-current=page],
+:root[data-theme=light] .producto-final .enlace { color: #3b281f; }
+:root[data-theme=light] .etiqueta,
+:root[data-theme=light] .producto-titulo strong,
+:root[data-theme=light] .categoria-numero,
+:root[data-theme=light] .footer-firma { color: #81431e; }
+:root[data-theme=light] .foto-caption { color: #fff3e0; background: #38251ee6; border-color: #e6ccb5; }
+:root[data-theme=light] .foto-caption span,
+:root[data-theme=light] .foto-caption strong { color: #fff3e0; }
+:root[data-theme=light] .sidebar { color: #faefdc; background: #221916; }
+:root[data-theme=light] .sidebar .logo,
+:root[data-theme=light] .sidebar .marca-texto,
+:root[data-theme=light] .sidebar .marca-subtitulo,
+:root[data-theme=light] .sidebar .sidebar-perfil strong { color: #faefdc; }
+:root[data-theme=light] .sidebar nav a,
+:root[data-theme=light] .sidebar-perfil small { color: #d9c9b8; }
+:root[data-theme=light] .sidebar .etiqueta { color: #edb986; }
+:root[data-theme=light] .sidebar nav a.activo { color: #fff4df; }
+:root[data-theme=light] input::placeholder,
+:root[data-theme=light] textarea::placeholder { color: #78604f; opacity: 1; }
+:root[data-theme=light] .boton.secundario { color: #3b281f!important; }
+:root[data-theme=light] .sidebar .secundario { color: #faefdc!important; background: #3b2c25!important; }
+:root[data-theme=light] .agregar { background: #eaddcb; color: #3b281f; border-color: #ad8c70; }
+:root[data-theme=light] .agregar:hover { background: #3b281f; color: #fff4df; }
+:root[data-theme=light] .estado { opacity: 1; }
+:root[data-theme=light] .hero h1 { text-shadow: 0 1px 0 #fff9, 0 3px 8px #64382112; }
+label, .producto-info>p, .muted { line-height: 1.7; }
+.catalogo-meta, .catalogo-nota { font-size: .82rem; }
+:focus-visible { outline-width: 3px; }
+@media (prefers-contrast:more) {
+  .tarjeta,.producto,.indicador,.cabecera,.pie { backdrop-filter:none; background:var(--surface); }
+  .sidebar { background:#221916; }
+  .muted { color:var(--ink); }
+}

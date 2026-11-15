@@ -1,0 +1,29 @@
+<?php $negocio=Negocio::datos();$whatsapp=Negocio::whatsapp();$maps=Negocio::maps();$accesoLogo=$actual?($actual['rol']==='cliente'?'mis-pedidos':'admin'):'acceder'; ?>
+<!doctype html>
+<html lang="es"><head><?php require __DIR__.'/cabecera.php'; ?></head>
+<body data-cart-key="<?= e('cafebar-cart-'.($actual['id']??'invitado')) ?>" data-clear-cart="<?= !empty($_SESSION['vaciar_carrito'])?'1':'0' ?>">
+<?php unset($_SESSION['vaciar_carrito']); ?>
+<a class="saltar" href="#contenido">Saltar al contenido</a>
+<div class="anuncio"><span class="anuncio-lugar"><span class="punto-vivo"></span><?= e($negocio['ciudad']) ?></span></div>
+<header class="cabecera contenedor"><a class="logo" href="<?= e(url($accesoLogo)) ?>" aria-label="Coffe Music Bar, acceder al sistema" title="Acceder al sistema"><?php require __DIR__.'/marca.php'; ?></a>
+<div class="cabecera-acciones"><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navegacion"><span aria-hidden="true">☰</span><span>Menú</span></button><nav id="navegacion" aria-label="Navegación principal"><a href="<?= e(url()) ?>">Inicio</a><a href="<?= e(url('nosotros')) ?>">Nosotros</a><a href="<?= e(url('productos')) ?>">La carta</a><a href="<?= e(url('contactos')) ?>">Contactos</a>
+<?php if($actual): ?><?php if($actual['rol']==='cliente'): ?><a href="<?= e(url('mis-pedidos')) ?>">Mis pedidos</a><a class="nav-chip" href="<?= e(url('carrito')) ?>">Carrito <span class="badge" data-cart-count>0</span></a><?php else: ?><a class="nav-chip" href="<?= e(url('admin')) ?>">Mi panel ↗</a><?php endif ?><a href="<?= e(url('musica')) ?>">Música ♫</a><a href="<?= e(url('perfil')) ?>">Mi perfil</a><form method="post" action="<?= e(url('salir')) ?>"><?= CsrfToken::campo() ?><button class="enlace">Salir</button></form><?php else: ?><a class="nav-acceso" href="<?= e(url('acceder')) ?>">Mi cuenta <span aria-hidden="true">↗</span></a><?php endif ?></nav><button class="theme-rotator" id="theme-rotator" type="button" aria-label="Cambiar tema" title="Cambiar tema"><span class="rotator-icon" aria-hidden="true">◐</span></button></div></header>
+<main id="contenido" class="contenedor principal"><?php require __DIR__.'/aviso.php';require dirname(__DIR__).'/'.$archivo.'.php'; ?></main>
+<footer class="pie"><div class="contenedor"><section class="footer-saludo"><div><span class="etiqueta">TU PRÓXIMO BUEN PLAN</span><h2>Nos vemos<br><em>entre café y canciones.</em></h2></div><a class="boton boton-whatsapp" href="<?= e($whatsapp??url('contactos#mensaje')) ?>" <?= $whatsapp?'target="_blank" rel="noopener noreferrer"':'' ?>><?= $whatsapp?'Hablemos por WhatsApp':'Escríbenos' ?><span aria-hidden="true">↗</span></a></section>
+<div class="pie-grid"><div><a class="logo" href="<?= e(url($accesoLogo)) ?>" aria-label="Coffe Music Bar, acceder al sistema" title="Acceder al sistema"><?php require __DIR__.'/marca.php'; ?></a><p>Café en la mesa.<br>Música en el alma.<br>Un ratito para ti.</p><span class="footer-firma">COFFEE · MUSIC · GOOD TIMES</span></div><div><span class="etiqueta">ENCUÉNTRANOS</span><p><?= $negocio['direccion']!==''?e($negocio['direccion']).'<br>':'' ?><?= e($negocio['ciudad']) ?></p><?php if($maps): ?><a class="contact-link" href="<?= e($maps) ?>" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">⌖</span> Cómo llegar · Google Maps ↗</a><?php else: ?><a class="contact-link" href="<?= e(url('contactos#mensaje')) ?>">Consulta nuestra ubicación →</a><?php endif ?><a class="contact-link" href="<?= e($whatsapp??url('contactos#mensaje')) ?>" <?= $whatsapp?'target="_blank" rel="noopener noreferrer"':'' ?>><?= $whatsapp?'WhatsApp · '.e($negocio['whatsapp']):'Envíanos tu consulta' ?> ↗</a></div><div><span class="etiqueta">A TU RITMO</span><a href="<?= e(url('productos')) ?>">Nuestra carta</a><a href="<?= e(url('nosotros')) ?>">Nuestra esencia</a><a href="<?= e(url($actual?'perfil':'registro')) ?>"><?= $actual?'Mi cuenta':'Crea tu cuenta' ?></a><a href="<?= e(url('contactos')) ?>">Contactos</a></div></div>
+<?php if($maps): ?><a class="footer-mapa" href="<?= e($maps) ?>" target="_blank" rel="noopener noreferrer"><span class="mapa-dibujo" aria-hidden="true"><svg viewBox="0 0 500 120" preserveAspectRatio="none"><path d="M0 18 500 78M0 105 500 26M92 0l19 120M300 0l-36 120M450 0l-29 120"/></svg><span class="mapa-pin">⌖</span></span><span class="mapa-texto"><strong>Aquí empieza tu próxima pausa.</strong><span><?= e($negocio['direccion']?:$negocio['ciudad']) ?></span></span><span class="mapa-abrir">Abrir Google Maps ↗</span></a><?php endif ?>
+<div class="pie-legal"><span>© <?= date('Y') ?> Coffe Music Bar</span><span>Precios en bolivianos · Hecho para disfrutar</span><a href="#contenido">Volver arriba ↑</a></div></div></footer>
+<?php if($whatsapp): ?><a class="whatsapp-flotante" href="<?= e($whatsapp) ?>" target="_blank" rel="noopener noreferrer" aria-label="Contactar a Coffe Music Bar por WhatsApp"><svg viewBox="0 0 32 32" width="25" height="25" fill="none" aria-hidden="true"><path d="M27 15a11 11 0 0 1-16.5 9.5L5 26l1.5-5.5A11 11 0 1 1 27 15Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 9c-3 2 0 8 4 10s6 1 5-2l-3-1-1 2c-3-1-5-3-6-6l2-1-1-2Z" fill="currentColor"/></svg><span>Hablemos</span></a><?php endif ?>
+
+<!-- Mini reproductor flotante de vinilo con nombre del artista -->
+<aside class="mini-reproductor-flotante" id="mini-reproductor" aria-label="Música sonando en caffe music bar">
+  <div class="mini-disco girando" id="mini-disco" title="Disco de vinilo girando en vivo">
+    <div class="mini-vinilo-centro"></div>
+  </div>
+  <div class="mini-texto">
+    <strong id="mini-pista-artista">Frank Sinatra</strong>
+    <span id="mini-pista-titulo">Fly Me to the Moon</span>
+  </div>
+  <button type="button" class="mini-play-btn" id="mini-btn-play" title="Pausar o reproducir" aria-label="Pausar o reproducir">⏸</button>
+</aside>
+</body></html>

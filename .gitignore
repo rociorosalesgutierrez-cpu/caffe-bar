@@ -1,0 +1,10 @@
+app/config/local.php
+storage/*
+!storage/.gitkeep
+public/uploads/productos/*.jpg
+!public/uploads/productos/.gitkeep
+public/uploads/musica/*.mp3
+public/uploads/musica/*.ogg
+public/uploads/musica/*.wav
+!public/uploads/musica/.gitkeep
+*.log
