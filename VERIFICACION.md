@@ -1,5 +1,14 @@
 # Verificación realizada
 
+## Respuestas, compras del administrador, red local y factura
+
+- Migración de contactos ejecutada dos veces sin perder consultas: propietario por ID de sesión, enlace privado con hash, respuesta, administrador responsable y fecha UTC.
+- HTTP en base aislada: respuesta del administrador visible al visitante con su enlace y al cliente en Mis mensajes; no hay asociación automática por correo. Se rechazaron consultas por ID adivinable, tokens inexistentes, suplantación de propietario, respuestas sin rol administrativo y CSRF inválido. No se permite marcar respondido sin texto.
+- Compra del administrador por HTTP: selección desde la carta, confirmación, descuento de stock, carrito vaciado, pedido vinculado al administrador y acceso administrativo conservado. Los empleados siguen sin acceso a compras. No se hicieron compras en la base de uso habitual.
+- Factura: CSS externo servido por HTTP, botón data-print con JavaScript externo, datos antes del detalle, NIT y razón social del comprador editables por la ruta propia, acceso a documentos ajenos rechazado y datos malformados con estado 422. Se comprobaron importes desde cero hasta un millón, incluidos 1.250,50. No se generaron códigos fiscales simulados.
+- Red: se inició un servidor PHP en la dirección Wi-Fi del equipo y se comprobaron Inicio y los recursos por esa dirección. La regla existente de Windows permite PHP/TCP en el perfil activo; no se desactivó ni se cambió el firewall. No se dispuso de un segundo dispositivo para verificar el recorrido completo desde otro equipo.
+- La factura es de demostración. La prueba del botón comprueba la llamada a window.print; no se completó un diálogo físico de impresión ni se emitió una factura fiscal real.
+
 ## Código legible e indentación multilínea
 
 Se reorganizaron los 98 archivos de código PHP, JavaScript, CSS, SQL, PowerShell y SVG que forman la aplicación y sus pruebas. Se conservaron las modificaciones previas de la vista de categorías. Se añadieron nombres de variables descriptivos, bloques explícitos y separación de instrucciones, junto con `.editorconfig` para mantener cuatro espacios de indentación.

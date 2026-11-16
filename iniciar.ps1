@@ -1,3 +1,9 @@
+param(
+    [string]$Escuchar = '0.0.0.0',
+    [ValidateRange(1024, 65535)]
+    [int]$Puerto = 8080
+)
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $phpCommand = Get-Command php -ErrorAction SilentlyContinue
@@ -20,5 +26,38 @@ if ($gd -eq '0') {
     $phpOptions += @('-d', 'extension=gd')
 }
 $phpOptions += @('-d', ('upload_tmp_dir=' + (Join-Path $PSScriptRoot 'storage/tmp')), '-d', 'upload_max_filesize=20M', '-d', 'post_max_size=24M')
-Write-Output 'CafeBar MVC: http://127.0.0.1:8080/ | Detener: Ctrl+C'
-& $phpExecutable @phpOptions -S 127.0.0.1:8080 -t public public/router.php
+$direccionLocal = $Escuchar
+if ($Escuchar -eq '0.0.0.0') {
+    $direccionLocal = '127.0.0.1'
+}
+
+Write-Output ('CafeBar MVC: http://' + $direccionLocal + ':' + $Puerto + '/')
+
+if ($Escuchar -ne '127.0.0.1') {
+    $interfaces = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()
+
+    foreach ($interfaz in $interfaces) {
+        if ($interfaz.OperationalStatus -ne 'Up') {
+            continue
+        }
+
+        $propiedades = $interfaz.GetIPProperties()
+        if ($propiedades.GatewayAddresses.Count -eq 0) {
+            continue
+        }
+
+        foreach ($direccion in $propiedades.UnicastAddresses) {
+            if ($direccion.Address.AddressFamily -ne 'InterNetwork') {
+                continue
+            }
+
+            $ip = $direccion.Address.ToString()
+            if ($Escuchar -eq '0.0.0.0' -or $Escuchar -eq $ip) {
+                Write-Output ('Otros dispositivos en la misma red: http://' + $ip + ':' + $Puerto + '/')
+            }
+        }
+    }
+}
+
+Write-Output 'Mantener este equipo encendido. Detener: Ctrl+C'
+& $phpExecutable @phpOptions -S ($Escuchar + ':' + $Puerto) -t public public/router.php

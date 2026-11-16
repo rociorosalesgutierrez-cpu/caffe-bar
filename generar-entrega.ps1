@@ -112,6 +112,13 @@ $files = @(
     'tests/responsive-musica-http.ps1'
     'tests/usuarios.php'
     '.editorconfig'
+    'app/controllers/ConsultaController.php'
+    'app/helpers/ImporteLiteral.php'
+    'app/views/publico/mensajes.php'
+    'database/actualizar-contactos.php'
+    'public/css/factura.css'
+    'tests/importe-literal.php'
+    'tests/impresion.js'
 )
 $text = New-Object System.Text.StringBuilder
 [void]$text.AppendLine('# CafeBar MVC: construccion y codigo completo')

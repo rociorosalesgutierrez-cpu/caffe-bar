@@ -94,7 +94,9 @@ $mapaIntegrado = Negocio::mapaIntegrado();
     >
         <p class="etiqueta">CONVERSEMOS</p>
         <h2>Escríbenos algo.</h2>
-        <p class="muted">Guardaremos tu consulta para que nuestro equipo pueda atenderla.</p>
+        <p class="muted">
+            <?= $actual ? 'La respuesta aparecerá en Mis mensajes de tu cuenta.' : 'Al enviar recibirás un enlace privado para leer nuestra respuesta.' ?>
+        </p>
         <form
             method="post"
             action="<?= e(url('contactos')) ?>"
@@ -103,6 +105,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
             <label> Tu nombre
                 <input
                     name="nombre"
+                    value="<?= e($actual['nombre'] ?? '') ?>"
                     minlength="3"
                     maxlength="120"
                     pattern="[\p{L}][\p{L}\p{M}]*(?:[ '’\-][\p{L}][\p{L}\p{M}]*)*"
@@ -117,6 +120,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
                 <input
                     type="email"
                     name="correo"
+                    value="<?= e($actual['correo'] ?? '') ?>"
                     maxlength="190"
                     autocomplete="email"
                     placeholder="tu@correo.com"

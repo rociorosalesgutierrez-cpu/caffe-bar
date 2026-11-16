@@ -24,7 +24,7 @@
                 <p><?= e($producto['descripcion']) ?></p>
                 <div class="producto-final">
                     <small> <?= $producto['stock'] > 0 ? e($producto['stock']) . ' disponibles' : 'Agotado' ?> </small>
-                    <?php if ($actual && $actual['rol'] === 'cliente'): ?>
+                    <?php if (AuthMiddleware::puedeComprar($actual)): ?>
                         <button
                             class="agregar"
                             data-add

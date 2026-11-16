@@ -32,6 +32,13 @@ function bs(mixed $valor): string
 {
     return 'Bs. ' . number_format((float) $valor, 2, ',', '.');
 }
+
+function fechaBolivia(string $fecha): string
+{
+    $instante = new DateTimeImmutable($fecha, new DateTimeZone('UTC'));
+
+    return $instante->setTimezone(new DateTimeZone('America/La_Paz'))->format('d/m/Y H:i');
+}
 function centavos(string $precio): int
 {
     [$entero, $decimal] = array_pad(explode('.', $precio), 2, '0');

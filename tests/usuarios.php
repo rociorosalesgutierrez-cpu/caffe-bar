@@ -149,7 +149,7 @@ function solicitar(string $ruta, array &$cookies, ?array $datos = null): array
             $datos = null;
             continue;
         }
-        return ['status' => $status, 'html' => $html];
+        return ['status' => $status, 'html' => $html, 'ruta' => $ruta, 'headers' => $headers];
     }
     throw new RuntimeException('Demasiadas redirecciones.');
 }
@@ -369,7 +369,12 @@ try {
             $totalMensajes,
         'contacto rechaza nombres numéricos'
     );
-    solicitar('/contactos', $visitante, $mensaje);
+    $confirmacion = solicitar('/contactos', $visitante, $mensaje);
+    $enlacePrivado = $confirmacion['ruta'];
+    comprobar(
+        str_starts_with($enlacePrivado, '/consulta?token='),
+        'visitante recibe un enlace privado de seguimiento'
+    );
     $m = $lector
         ->query("SELECT * FROM mensajes_contacto WHERE correo='contacto@example.test'")
         ->fetch();
@@ -380,14 +385,190 @@ try {
             str_contains($respuesta['html'], $mensaje['asunto']),
         'Contactos guarda el mensaje y aparece en el panel'
     );
-    solicitar('/admin/mensajes/estado', $cookies, [
+    $sinRespuesta = solicitar('/admin/mensajes/estado', $cookies, [
         'csrf' => token($respuesta),
         'id' => $m['id'],
         'estado' => 'respondido'
     ]);
+    comprobar(
+        str_contains($sinRespuesta['html'], 'Escribe y guarda una respuesta'),
+        'no se marca respondido sin escribir una respuesta'
+    );
+    solicitar('/admin/mensajes/responder', $cookies, [
+        'csrf' => token($respuesta),
+        'id' => $m['id'],
+        'respuesta' => 'Hola, tenemos mesas disponibles. <script>alert(1)</script>'
+    ]);
     $q = $lector->prepare('SELECT estado FROM mensajes_contacto WHERE id=?');
     $q->execute([$m['id']]);
     comprobar($q->fetchColumn() === 'respondido', 'estado del mensaje persistido');
+
+    $lectura = solicitar($enlacePrivado, $visitante);
+    comprobar(
+        str_contains($lectura['html'], 'Hola, tenemos mesas disponibles.') &&
+            !str_contains($lectura['html'], '<script>alert(1)</script>'),
+        'visitante lee la respuesta con escape HTML'
+    );
+    comprobar(
+        $m['token_hash'] !== substr($enlacePrivado, strlen('/consulta?token=')),
+        'el enlace privado se almacena como hash'
+    );
+    $invalida = solicitar('/consulta?token=' . str_repeat('f', 64), $visitante);
+    comprobar($invalida['status'] === 404, 'token de consulta ajeno o inexistente rechazado');
+    $invalida = solicitar('/consulta?id=' . $m['id'], $visitante);
+    comprobar($invalida['status'] === 404, 'identificador numérico no revela consultas privadas');
+
+    $pagina = solicitar('/contactos', $cliente);
+    $mensajeCliente = array_replace($mensaje, [
+        'csrf' => token($pagina),
+        'asunto' => 'Consulta privada de cliente',
+        'usuario_id' => 1
+    ]);
+    $lectura = solicitar('/contactos', $cliente, $mensajeCliente);
+    comprobar(
+        $lectura['ruta'] === '/mis-mensajes' &&
+            str_contains($lectura['html'], $mensajeCliente['asunto']) &&
+            !str_contains($lectura['html'], $mensaje['asunto']),
+        'bandeja vinculada a la sesión y no al correo declarado'
+    );
+    $propia = $lector
+        ->query("SELECT * FROM mensajes_contacto WHERE asunto='Consulta privada de cliente'")
+        ->fetch();
+    comprobar(
+        (int) $propia['usuario_id'] === (int) $u['id'],
+        'el remitente no puede suplantar al propietario con el formulario'
+    );
+    $pagina = solicitar('/admin/mensajes', $cookies);
+    $denegada = solicitar('/admin/mensajes/responder', $cliente, [
+        'csrf' => token($lectura),
+        'id' => $propia['id'],
+        'respuesta' => 'Respuesta no autorizada'
+    ]);
+    comprobar($denegada['status'] === 403, 'cliente no responde como administrador');
+    $denegada = solicitar('/admin/mensajes/responder', $cookies, [
+        'csrf' => 'invalido',
+        'id' => $propia['id'],
+        'respuesta' => 'Respuesta no autorizada'
+    ]);
+    comprobar($denegada['status'] === 403, 'responder exige CSRF válido');
+    solicitar('/admin/mensajes/responder', $cookies, [
+        'csrf' => token($pagina),
+        'id' => $propia['id'],
+        'respuesta' => 'Tu reserva está disponible.'
+    ]);
+    $lectura = solicitar('/mis-mensajes', $cliente);
+    comprobar(
+        str_contains($lectura['html'], 'Tu reserva está disponible.'),
+        'cliente ve la respuesta desde Mis mensajes'
+    );
+    $ajena = solicitar('/mis-mensajes?usuario_id=' . $u['id'], $cookies);
+    comprobar(
+        !str_contains($ajena['html'], 'Tu reserva está disponible.'),
+        'la bandeja personal no acepta suplantación por URL'
+    );
+
+    $lector->exec('UPDATE productos SET precio=1250.50 WHERE id=1');
+    $stockAntes = (int) $lector->query('SELECT stock FROM productos WHERE id=1')->fetchColumn();
+    $pagina = solicitar('/productos', $cookies);
+    comprobar(
+        str_contains($pagina['html'], 'data-add'),
+        'administrador puede agregar productos desde la carta'
+    );
+    $pagina = solicitar('/carrito', $cookies);
+    preg_match('/name="token"\s+value="([^"]+)"/', $pagina['html'], $pedidoToken);
+    $compra = solicitar('/carrito/confirmar', $cookies, [
+        'csrf' => token($pagina),
+        'token' => $pedidoToken[1],
+        'items' => '{"1":1}'
+    ]);
+    $pedidoAdmin = $lector
+        ->query('SELECT * FROM pedidos WHERE usuario_id=1 ORDER BY id DESC LIMIT 1')
+        ->fetch();
+    comprobar(
+        $pedidoAdmin !== false &&
+            $compra['ruta'] === '/mis-pedidos' &&
+            str_contains($compra['html'], 'data-clear-cart="1"'),
+        'compra propia del administrador confirmada y carrito vaciado'
+    );
+    comprobar(
+        (int) $lector->query('SELECT stock FROM productos WHERE id=1')->fetchColumn() ===
+            $stockAntes - 1 && fila('admin')['rol'] === 'administrador',
+        'compra descuenta stock y conserva el rol administrativo'
+    );
+    $pagina = solicitar('/admin/usuarios', $cookies);
+    comprobar($pagina['status'] === 200, 'administrador mantiene acceso a su panel tras comprar');
+    $factura = solicitar('/admin/factura?id=' . $pedidoAdmin['id'], $cookies);
+    comprobar(
+        $factura['status'] === 200 &&
+            str_contains($factura['html'], 'MIL DOSCIENTOS CINCUENTA 50/100 BOLIVIANOS'),
+        'factura admite importes mayores de mil con centavos exactos'
+    );
+    comprobar(
+        str_contains($factura['html'], 'css/factura.css') &&
+            str_contains($factura['html'], 'data-print') &&
+            !str_contains($factura['html'], 'onclick=') &&
+            !str_contains($factura['html'], '<style>'),
+        'factura usa estilos y botón compatibles con CSP'
+    );
+    comprobar(
+        strpos($factura['html'], 'class="factura-datos"') <
+            strpos($factura['html'], 'class="factura-detalle"'),
+        'datos del comprador aparecen antes del detalle'
+    );
+    comprobar(
+        str_contains($factura['html'], 'FACTURA DE DEMOSTRACIÓN') &&
+            !str_contains($factura['html'], 'CUF:') &&
+            !str_contains($factura['html'], '72320623018'),
+        'documento no inventa NIT ni códigos fiscales'
+    );
+    $css = solicitar('/css/factura.css?v=1', $visitante);
+    comprobar(
+        $css['status'] === 200 && str_contains($css['html'], '@media print'),
+        'hoja de impresión responde por HTTP'
+    );
+    $invalida = solicitar('/admin/factura?id=' . $pedidoAdmin['id'] . '&nit[]=123', $cookies);
+    comprobar(
+        $invalida['status'] === 422,
+        'datos de factura malformados se rechazan sin error 500'
+    );
+    $ajena = solicitar('/factura?id=' . $pedidoAdmin['id'], $cliente);
+    comprobar($ajena['status'] === 403, 'cliente no accede a la factura de otra cuenta');
+
+    $pagina = solicitar('/carrito', $cliente);
+    preg_match('/name="token"\s+value="([^"]+)"/', $pagina['html'], $pedidoToken);
+    solicitar('/carrito/confirmar', $cliente, [
+        'csrf' => token($pagina),
+        'token' => $pedidoToken[1],
+        'items' => '{"1":1}'
+    ]);
+    $pedidoCliente = $lector
+        ->query(
+            'SELECT * FROM pedidos WHERE usuario_id=' . (int) $u['id'] . ' ORDER BY id DESC LIMIT 1'
+        )
+        ->fetch();
+    $factura = solicitar(
+        '/factura?id=' . $pedidoCliente['id'] . '&nit=12345&razon_social=Maria%20Perez',
+        $cliente
+    );
+    comprobar(
+        $factura['status'] === 200 &&
+            str_contains($factura['html'], 'action="/factura"') &&
+            str_contains($factura['html'], 'Maria Perez') &&
+            !str_contains($factura['html'], 'action="/admin/factura"'),
+        'cliente actualiza sus datos de impresión en la ruta correcta'
+    );
+    $personal = [];
+    $pagina = solicitar('/acceder', $personal);
+    solicitar('/acceder', $personal, [
+        'csrf' => token($pagina),
+        'usuario' => 'empleado',
+        'clave' => 'CafeBar2026!'
+    ]);
+    comprobar(
+        solicitar('/carrito', $personal)['status'] === 403,
+        'empleado mantiene la restricción de compra'
+    );
+
     echo 'Base aislada conservada: ' . $nombreDb . PHP_EOL;
 } finally {
     proc_terminate($proceso);

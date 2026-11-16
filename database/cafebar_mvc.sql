@@ -79,7 +79,16 @@ CREATE TABLE mensajes_contacto (
     asunto VARCHAR(150) NOT NULL,
     contenido TEXT NOT NULL,
     fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    estado ENUM('nuevo', 'leido', 'respondido') NOT NULL DEFAULT 'nuevo'
+    estado ENUM('nuevo', 'leido', 'respondido') NOT NULL DEFAULT 'nuevo',
+    usuario_id INT UNSIGNED NULL,
+    token_hash CHAR(64) NULL,
+    respuesta TEXT NULL,
+    respondido_por INT UNSIGNED NULL,
+    respuesta_fecha DATETIME NULL,
+    UNIQUE KEY contacto_token (token_hash),
+    INDEX contacto_usuario (usuario_id),
+    CONSTRAINT contacto_propietario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE SET NULL,
+    CONSTRAINT contacto_responsable FOREIGN KEY (respondido_por) REFERENCES usuarios (id) ON DELETE SET NULL
 ) ENGINE = InnoDB;
 
 -- Cuentas de laboratorio: admin, empleado y cliente. Contraseña para las tres: CafeBar2026!

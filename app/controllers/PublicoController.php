@@ -42,14 +42,29 @@ final class PublicoController
 
     public function enviar(): void
     {
-        postAccion(function (): void {
+        CsrfToken::verificar();
+
+        try {
             Intentos::registrar('contacto', 5, 900);
-            (new MensajeModel())->crear(
+            $usuario = AuthMiddleware::usuario();
+            $consulta = (new MensajeModel())->crear(
                 Validador::nombre($_POST),
                 Validador::correo($_POST),
                 Validador::texto($_POST, 'asunto', 3, 150),
-                Validador::texto($_POST, 'contenido', 10, 5000)
+                Validador::texto($_POST, 'contenido', 10, 5000),
+                $usuario ? (int) $usuario['id'] : null
             );
-        }, 'contactos');
+
+            flash('Consulta enviada. Aquí podrás leer la respuesta de nuestro equipo.');
+
+            if ($usuario) {
+                redirigir('mis-mensajes');
+            }
+
+            redirigir('consulta?token=' . $consulta['token']);
+        } catch (DomainException $error) {
+            flash($error->getMessage(), false);
+            redirigir('contactos#mensaje');
+        }
     }
 }

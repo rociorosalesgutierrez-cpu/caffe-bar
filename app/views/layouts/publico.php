@@ -50,7 +50,7 @@ $accesoLogo = $actual ? ($actual['rol'] === 'cliente' ? 'mis-pedidos' : 'admin')
                         href="<?= e(url('productos')) ?>"
                     >La carta</a><a href="<?= e(url('contactos')) ?>">Contactos</a>
                     <?php if ($actual): ?>
-                        <?php if ($actual['rol'] === 'cliente'): ?>
+                        <?php if (AuthMiddleware::puedeComprar($actual)): ?>
                             <a href="<?= e(url('mis-pedidos')) ?>">Mis pedidos</a><a
                                 class="nav-chip"
                                 href="<?= e(url('carrito')) ?>"
@@ -58,12 +58,14 @@ $accesoLogo = $actual ? ($actual['rol'] === 'cliente' ? 'mis-pedidos' : 'admin')
                                     class="badge"
                                     data-cart-count
                                 >0</span></a>
-                        <?php else: ?>
+                        <?php endif; ?>
+                        <?php if ($actual['rol'] !== 'cliente'): ?>
                             <a
                                 class="nav-chip"
                                 href="<?= e(url('admin')) ?>"
                             >Mi panel ↗</a>
                         <?php endif; ?>
+                        <a href="<?= e(url('mis-mensajes')) ?>">Mis mensajes</a>
                         <a href="<?= e(url('musica')) ?>">Música ♫</a><a href="<?= e(url('perfil')) ?>">Mi perfil</a>
                         <form
                             method="post"

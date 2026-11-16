@@ -45,7 +45,7 @@
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-                            <a href="<?= e(url('pedido?id=' . $pedido['id'])) ?>">Ver detalle →</a>
+                            <a href="<?= e(url('pedido?id=' . $pedido['id'] . ($cliente ? '&propio=1' : ''))) ?>">Ver detalle →</a>
                             <a
                                 class="boton pequeno secundario"
                                 href="<?= e(url(($cliente ? 'factura' : 'admin/factura') . '?id=' . $pedido['id'])) ?>"

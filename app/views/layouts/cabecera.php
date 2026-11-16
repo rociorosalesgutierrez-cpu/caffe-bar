@@ -56,12 +56,15 @@
 <?php endif; ?>
 <link
     rel="stylesheet"
-    href="<?= e(url('css/responsive.css?v=2')) ?>"
+    href="<?= e(url('css/responsive.css?v=3')) ?>"
 >
 <script
-    src="<?= e(url('js/app.js?v=8')) ?>"
+    src="<?= e(url('js/app.js?v=9')) ?>"
     defer
 ></script>
+<?php if ($archivo === 'admin/factura'): ?>
+    <link rel="stylesheet" href="<?= e(url('css/factura.css?v=1')) ?>">
+<?php endif; ?>
 <script
     src="<?= e(url('js/carrito.js?v=3')) ?>"
     defer

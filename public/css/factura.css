@@ -1,0 +1,231 @@
+.factura-botonera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.factura-botonera h1 {
+    margin: 0.8rem 0 0.4rem;
+    font-size: clamp(1.8rem, 5vw, 2.5rem);
+}
+
+.factura-edicion {
+    margin-bottom: 1.5rem;
+}
+
+.factura-edicion h2 {
+    font-size: 1.4rem;
+}
+
+.factura-formulario {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+.factura-documento {
+    max-width: 900px;
+    margin-inline: auto;
+    padding: 2rem;
+    border-radius: 12px;
+    background: #fff;
+    color: #172438;
+    border: 1px solid #d8dce1;
+    box-shadow: 0 12px 30px #0002;
+    overflow-wrap: anywhere;
+}
+
+.factura-documento p {
+    margin: 0.4rem 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.factura-encabezado {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 2px solid #172438;
+}
+
+.factura-marca {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.factura-marca h2 {
+    color: inherit;
+    font-size: 1.35rem;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.factura-referencia {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.9rem;
+    border: 1px solid #b7bec8;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+.factura-datos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+    font-size: 0.85rem;
+}
+
+.factura-datos dt {
+    font-weight: 800;
+    margin-bottom: 0.3rem;
+}
+
+.factura-datos dd {
+    margin: 0;
+}
+
+.factura-detalle {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.factura-tabla {
+    width: 100%;
+    min-width: 450px;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: inherit;
+}
+
+.factura-tabla th,
+.factura-tabla td {
+    padding: 0.7rem 0.5rem;
+    border-bottom: 1px solid #d8dce1;
+    color: inherit;
+    text-align: left;
+}
+
+.factura-tabla th {
+    background: #f4f0e9;
+}
+
+.factura-tabla th:nth-last-child(-n + 2),
+.factura-tabla td:nth-last-child(-n + 2) {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.factura-totales {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, auto);
+    gap: 1.5rem;
+    align-items: start;
+    margin-top: 1.5rem;
+}
+
+.factura-totales .factura-total {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 1.1rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid #172438;
+}
+
+.factura-aviso {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #b7bec8;
+}
+
+.factura-aviso p {
+    font-size: 0.75rem;
+}
+
+@media (max-width: 700px) {
+    .factura-formulario,
+    .factura-encabezado,
+    .factura-datos,
+    .factura-totales {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .factura-documento {
+        padding: 1.1rem;
+    }
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 12mm;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    body::before,
+    body::after,
+    .sidebar,
+    .cabecera,
+    .pie,
+    .panel-top,
+    .no-print,
+    .ondas-fondo,
+    .theme-rotator,
+    .anuncio,
+    .aviso,
+    .whatsapp-flotante,
+    .saltar,
+    #toast {
+        display: none !important;
+    }
+
+    .panel-body,
+    .panel-main,
+    .contenedor,
+    .principal {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    .factura-documento {
+        max-width: none;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .factura-datos {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .factura-encabezado,
+    .factura-totales,
+    .factura-tabla tr {
+        break-inside: avoid;
+    }
+
+    .factura-tabla thead {
+        display: table-header-group;
+    }
+
+    .factura-detalle {
+        overflow: visible;
+    }
+}

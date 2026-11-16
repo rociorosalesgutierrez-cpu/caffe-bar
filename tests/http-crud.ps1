@@ -127,10 +127,10 @@ Post 'admin/mensajes/estado' @{
     id     = $messageId
     estado = 'leido'
 } $session | Out-Null
-Post 'admin/mensajes/estado' @{
+Post 'admin/mensajes/responder' @{
     csrf   = $csrf
     id     = $messageId
-    estado = 'respondido'
+    respuesta = 'Respuesta escrita por la prueba de integración.'
 } $session | Out-Null
 Post 'admin/mensajes/eliminar' @{
     csrf = $csrf

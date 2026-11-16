@@ -64,4 +64,4 @@
 require __DIR__ . '/tarjetas.php';
 ?>
 <p class="catalogo-nota">El stock y el precio se verifican al confirmar tu pedido. Encuentra tus
-    favoritos y agrégalos a tu carrito desde tu cuenta de cliente.</p>
+    favoritos y agrégalos a tu carrito desde tu cuenta.</p>

@@ -53,6 +53,10 @@
                     <a href="<?= e(url('admin/mensajes')) ?>">✉ &nbsp; Mensajes</a>
                 <?php endif; ?>
                 <a href="<?= e(url('perfil')) ?>">○ &nbsp; Mi perfil</a>
+                <?php if (AuthMiddleware::puedeComprar($actual)): ?>
+                    <a href="<?= e(url('carrito')) ?>">▣ &nbsp; Mi carrito</a>
+                    <a href="<?= e(url('mis-pedidos')) ?>">▤ &nbsp; Mis pedidos personales</a>
+                <?php endif; ?>
                 <a href="<?= e(url()) ?>">↗ &nbsp; Ver sitio público</a>
             </nav>
             <!-- Botón de Contraste (contrast / brightness-medium / theme-light-dark) -->

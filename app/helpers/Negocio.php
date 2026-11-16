@@ -11,7 +11,8 @@ final class Negocio
             [
                 'direccion' => 'COFFE_DIRECCION',
                 'maps_url' => 'COFFE_MAPS_URL',
-                'whatsapp' => 'COFFE_WHATSAPP'
+                'whatsapp' => 'COFFE_WHATSAPP',
+                'nit' => 'COFFE_NIT'
             ]
             as $clave => $variable
         ) {

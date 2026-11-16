@@ -22,7 +22,7 @@ final class PedidoController
 
     public function mios(): void
     {
-        AuthMiddleware::exigir(['cliente']);
+        AuthMiddleware::exigir(AuthMiddleware::ROLES_COMPRA);
         vista('admin/pedidos', [
             'pedidos' => (new PedidoModel())->listar((int) $this->usuario['id']),
             'cliente' => true
@@ -31,7 +31,7 @@ final class PedidoController
 
     public function detalle(): void
     {
-        $cliente = $this->usuario['rol'] === 'cliente';
+        $cliente = $this->usuario['rol'] === 'cliente' || ($_GET['propio'] ?? '') === '1';
         vista(
             'admin/pedido',
             [

@@ -24,6 +24,21 @@ final class MensajeController
         }, 'admin/mensajes');
     }
 
+    public function responder(): void
+    {
+        $administrador = AuthMiddleware::exigir(['administrador']);
+
+        postAccion(function () use ($administrador): string {
+            (new MensajeModel())->responder(
+                Validador::entero($_POST, 'id'),
+                (int) $administrador['id'],
+                Validador::texto($_POST, 'respuesta', 3, 5000)
+            );
+
+            return 'Respuesta guardada. El cliente puede consultarla desde su cuenta o enlace privado.';
+        }, 'admin/mensajes');
+    }
+
     public function eliminar(): void
     {
         postAccion(function (): void {

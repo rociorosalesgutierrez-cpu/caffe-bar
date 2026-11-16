@@ -22,8 +22,10 @@ final class PedidoModel
             $user = Conexion::consulta('SELECT id,rol,estado FROM usuarios WHERE id=? FOR UPDATE', [
                 $usuario
             ])->fetch();
-            if (!$user || !$user['estado'] || $user['rol'] !== 'cliente') {
-                throw new DomainException('Solo clientes activos pueden confirmar pedidos.');
+            if (!AuthMiddleware::puedeComprar($user ?: null)) {
+                throw new DomainException(
+                    'Solo clientes o administradores activos pueden confirmar pedidos.'
+                );
             }
             $previo = Conexion::consulta('SELECT id,usuario_id FROM pedidos WHERE token=?', [
                 $token

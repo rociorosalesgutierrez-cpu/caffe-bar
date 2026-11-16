@@ -113,53 +113,33 @@ final class ReporteController
     public function factura(): void
     {
         AuthMiddleware::exigir(['administrador', 'empleado']);
-        $id = Validador::entero($_GET, 'id');
-
-        $model = new ReporteModel();
-        $factura = $model->datosFactura($id);
-
-        $nitCliente = trim($_GET['nit'] ?? '');
-        $razonSocial = trim($_GET['razon_social'] ?? '');
-
-        if ($nitCliente === '') {
-            $nitCliente = '0';
-        }
-        if ($razonSocial === '') {
-            $razonSocial = $factura['cliente'];
-        }
-
-        $literalTotal = $this->convertirNumeroALetras((float) $factura['total']);
-
-        vista(
-            'admin/factura',
-            [
-                'factura' => $factura,
-                'nitCliente' => $nitCliente,
-                'razonSocial' => $razonSocial,
-                'literalTotal' => $literalTotal,
-                'negocio' => Negocio::datos()
-            ],
-            true
-        );
+        $this->mostrarFactura(true);
     }
 
     public function facturaCliente(): void
     {
-        $id = Validador::entero($_GET, 'id');
-        $model = new ReporteModel();
-        $factura = $model->datosFactura($id);
+        $this->mostrarFactura(false);
+    }
 
-        // Si es cliente, validar que el pedido le pertenece
-        if (
-            $this->usuario['rol'] === 'cliente' &&
-            (int) $factura['usuario_id'] !== (int) $this->usuario['id']
-        ) {
+    private function mostrarFactura(bool $panel): void
+    {
+        $id = Validador::entero($_GET, 'id');
+        $factura = (new ReporteModel())->datosFactura($id);
+
+        if (!$panel && (int) $factura['usuario_id'] !== (int) $this->usuario['id']) {
+            http_response_code(403);
             throw new DomainException('No tienes permiso para ver la factura de este pedido.');
         }
 
-        $nitCliente = trim($_GET['nit'] ?? '0');
-        $razonSocial = trim($_GET['razon_social'] ?? $factura['cliente']);
-        $literalTotal = $this->convertirNumeroALetras((float) $factura['total']);
+        $nitCliente = isset($_GET['nit']) ? Validador::texto($_GET, 'nit', 1, 25) : '0';
+        if (!preg_match('/^[a-zA-Z0-9-]{1,25}$/D', $nitCliente)) {
+            throw new DomainException('El NIT o CI solo admite letras, números y guiones.');
+        }
+
+        $razonSocial = $factura['cliente'];
+        if (isset($_GET['razon_social'])) {
+            $razonSocial = Validador::texto($_GET, 'razon_social', 3, 120);
+        }
 
         vista(
             'admin/factura',
@@ -167,94 +147,13 @@ final class ReporteController
                 'factura' => $factura,
                 'nitCliente' => $nitCliente,
                 'razonSocial' => $razonSocial,
-                'literalTotal' => $literalTotal,
-                'negocio' => Negocio::datos()
+                'literalTotal' => ImporteLiteral::bolivianos((string) $factura['total']),
+                'negocio' => Negocio::datos(),
+                'rutaFactura' => $panel ? 'admin/factura' : 'factura',
+                'volver' => $panel ? 'admin/pedidos' : 'mis-pedidos',
+                'fechaEmision' => fechaBolivia(gmdate('Y-m-d H:i:s'))
             ],
-            false
+            $panel
         );
-    }
-
-    private function convertirNumeroALetras(float $numero): string
-    {
-        $centavos = (int) round(($numero - floor($numero)) * 100);
-        $entero = (int) floor($numero);
-
-        $unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
-        $especiales = [
-            11 => 'ONCE',
-            12 => 'DOCE',
-            13 => 'TRECE',
-            14 => 'CATORCE',
-            15 => 'QUINCE',
-            16 => 'DIECISEIS',
-            17 => 'DIECISIETE',
-            18 => 'DIECIOCHO',
-            19 => 'DIECINUEVE'
-        ];
-        $decenas = [
-            '',
-            'DIEZ',
-            'VEINTE',
-            'TREINTA',
-            'CUARENTA',
-            'CINCUENTA',
-            'SESENTA',
-            'SETENTA',
-            'OCHENTA',
-            'NOVENTA'
-        ];
-        $centenas = [
-            '',
-            'CIENTO',
-            'DOSCIENTOS',
-            'TRESCIENTOS',
-            'CUATROCIENTOS',
-            'QUINIENTOS',
-            'SEISCIENTOS',
-            'SETECIENTOS',
-            'OCHOCIENTOS',
-            'NOVECIENTOS'
-        ];
-
-        if ($entero === 0) {
-            $texto = 'CERO';
-        } elseif ($entero === 100) {
-            $texto = 'CIEN';
-        } else {
-            $c = (int) ($entero / 100);
-            $resto = $entero % 100;
-            $d = (int) ($resto / 10);
-            $u = $resto % 10;
-
-            $partes = [];
-            if ($c > 0) {
-                $partes[] = $centenas[$c];
-            }
-
-            if ($resto > 10 && $resto < 20) {
-                $partes[] = $especiales[$resto];
-            } else {
-                if ($d > 0) {
-                    if ($d === 2 && $u > 0) {
-                        $partes[] = 'VEINTI' . $unidades[$u];
-                        $u = 0;
-                    } else {
-                        $partes[] = $decenas[$d];
-                    }
-                }
-                if ($u > 0) {
-                    if ($d > 2) {
-                        $partes[] = 'Y';
-                    }
-                    $partes[] = $unidades[$u];
-                }
-            }
-            $texto = implode(' ', $partes);
-        }
-
-        return trim($texto) .
-            ' ' .
-            str_pad((string) $centavos, 2, '0', STR_PAD_LEFT) .
-            '/100 BOLIVIANOS';
     }
 }

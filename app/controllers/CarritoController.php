@@ -7,7 +7,7 @@ final class CarritoController
     private array $usuario;
     public function __construct()
     {
-        $this->usuario = AuthMiddleware::exigir(['cliente']);
+        $this->usuario = AuthMiddleware::exigir(AuthMiddleware::ROLES_COMPRA);
     }
 
     public function index(): void

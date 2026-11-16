@@ -112,6 +112,13 @@ New-Item -ItemType File -Force cafebar-mvc/tests/reportes-http.ps1
 New-Item -ItemType File -Force cafebar-mvc/tests/responsive-musica-http.ps1
 New-Item -ItemType File -Force cafebar-mvc/tests/usuarios.php
 New-Item -ItemType File -Force cafebar-mvc/.editorconfig
+New-Item -ItemType File -Force cafebar-mvc/app/controllers/ConsultaController.php
+New-Item -ItemType File -Force cafebar-mvc/app/helpers/ImporteLiteral.php
+New-Item -ItemType File -Force cafebar-mvc/app/views/publico/mensajes.php
+New-Item -ItemType File -Force cafebar-mvc/database/actualizar-contactos.php
+New-Item -ItemType File -Force cafebar-mvc/public/css/factura.css
+New-Item -ItemType File -Force cafebar-mvc/tests/importe-literal.php
+New-Item -ItemType File -Force cafebar-mvc/tests/impresion.js
 Set-Location cafebar-mvc
 ```
 
@@ -198,7 +205,16 @@ CREATE TABLE mensajes_contacto (
     asunto VARCHAR(150) NOT NULL,
     contenido TEXT NOT NULL,
     fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    estado ENUM('nuevo', 'leido', 'respondido') NOT NULL DEFAULT 'nuevo'
+    estado ENUM('nuevo', 'leido', 'respondido') NOT NULL DEFAULT 'nuevo',
+    usuario_id INT UNSIGNED NULL,
+    token_hash CHAR(64) NULL,
+    respuesta TEXT NULL,
+    respondido_por INT UNSIGNED NULL,
+    respuesta_fecha DATETIME NULL,
+    UNIQUE KEY contacto_token (token_hash),
+    INDEX contacto_usuario (usuario_id),
+    CONSTRAINT contacto_propietario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE SET NULL,
+    CONSTRAINT contacto_responsable FOREIGN KEY (respondido_por) REFERENCES usuarios (id) ON DELETE SET NULL
 ) ENGINE = InnoDB;
 
 -- Cuentas de laboratorio: admin, empleado y cliente. Contraseña para las tres: CafeBar2026!
@@ -611,7 +627,10 @@ $routes = [
     'GET /pedido' => [PedidoController::class, 'detalle'],
     'GET /admin/mensajes' => [MensajeController::class, 'index'],
     'POST /admin/mensajes/estado' => [MensajeController::class, 'estado'],
+    'POST /admin/mensajes/responder' => [MensajeController::class, 'responder'],
     'POST /admin/mensajes/eliminar' => [MensajeController::class, 'eliminar'],
+    'GET /mis-mensajes' => [ConsultaController::class, 'mias'],
+    'GET /consulta' => [ConsultaController::class, 'privada'],
     'GET /admin/reportes' => [ReporteController::class, 'index'],
     'GET /admin/reportes/csv' => [ReporteController::class, 'csv'],
     'GET /admin/factura' => [ReporteController::class, 'factura'],
@@ -764,6 +783,7 @@ declare(strict_types = 1);
 
 return [
     'nombre' => 'caffe music bar',
+    'nit' => '',
     'ciudad' => 'Oruro, Bolivia',
     'direccion' => 'Instituto Técnico Jesús María, calle Oblitas Nº 364 entre Pagador y Potosí',
     'telefono' => '+591 72320623',
@@ -811,6 +831,13 @@ function redirigir(string $ruta): never
 function bs(mixed $valor): string
 {
     return 'Bs. ' . number_format((float) $valor, 2, ',', '.');
+}
+
+function fechaBolivia(string $fecha): string
+{
+    $instante = new DateTimeImmutable($fecha, new DateTimeZone('UTC'));
+
+    return $instante->setTimezone(new DateTimeZone('America/La_Paz'))->format('d/m/Y H:i');
 }
 function centavos(string $precio): int
 {
@@ -868,6 +895,15 @@ declare(strict_types = 1);
 
 final class AuthMiddleware
 {
+    public const ROLES_COMPRA = ['cliente', 'administrador'];
+
+    public static function puedeComprar(?array $usuario): bool
+    {
+        return $usuario !== null &&
+            !empty($usuario['estado']) &&
+            in_array($usuario['rol'], self::ROLES_COMPRA, true);
+    }
+
     public static function usuario(): ?array
     {
         if (empty($_SESSION['uid'])) {
@@ -1285,7 +1321,8 @@ final class Negocio
             [
                 'direccion' => 'COFFE_DIRECCION',
                 'maps_url' => 'COFFE_MAPS_URL',
-                'whatsapp' => 'COFFE_WHATSAPP'
+                'whatsapp' => 'COFFE_WHATSAPP',
+                'nit' => 'COFFE_NIT'
             ]
             as $clave => $variable
         ) {
@@ -1721,8 +1758,10 @@ final class PedidoModel
             $user = Conexion::consulta('SELECT id,rol,estado FROM usuarios WHERE id=? FOR UPDATE', [
                 $usuario
             ])->fetch();
-            if (!$user || !$user['estado'] || $user['rol'] !== 'cliente') {
-                throw new DomainException('Solo clientes activos pueden confirmar pedidos.');
+            if (!AuthMiddleware::puedeComprar($user ?: null)) {
+                throw new DomainException(
+                    'Solo clientes o administradores activos pueden confirmar pedidos.'
+                );
             }
             $previo = Conexion::consulta('SELECT id,usuario_id FROM pedidos WHERE token=?', [
                 $token
@@ -1890,17 +1929,118 @@ final class MensajeModel
         )->fetchAll();
     }
 
-    public function crear(string $nombre, string $correo, string $asunto, string $contenido): void
-    {
+    public function crear(
+        string $nombre,
+        string $correo,
+        string $asunto,
+        string $contenido,
+        ?int $usuario = null
+    ): array {
+        $token = bin2hex(random_bytes(32));
+
         Conexion::consulta(
-            'INSERT INTO mensajes_contacto(nombre,correo,asunto,contenido) VALUES(?,?,?,?)',
-            [$nombre, $correo, $asunto, $contenido]
+            'INSERT INTO mensajes_contacto(nombre,correo,asunto,contenido,usuario_id,token_hash)
+             VALUES(?,?,?,?,?,?)',
+            [$nombre, $correo, $asunto, $contenido, $usuario, hash('sha256', $token)]
         );
+
+        return ['id' => (int) Conexion::obtener()->lastInsertId(), 'token' => $token];
+    }
+
+    public function mios(int $usuario): array
+    {
+        return Conexion::consulta(
+            'SELECT * FROM mensajes_contacto WHERE usuario_id=? ORDER BY id DESC LIMIT 100',
+            [$usuario]
+        )->fetchAll();
+    }
+
+    public function porToken(string $token): array
+    {
+        if (!preg_match('/^[a-f0-9]{64}$/D', $token)) {
+            throw new DomainException('Consulta inexistente o enlace privado inválido.');
+        }
+
+        $mensaje = Conexion::consulta('SELECT * FROM mensajes_contacto WHERE token_hash=?', [
+            hash('sha256', $token)
+        ])->fetch();
+
+        if (!$mensaje) {
+            throw new DomainException('Consulta inexistente o enlace privado inválido.');
+        }
+
+        return $mensaje;
+    }
+
+    public function responder(int $id, int $administrador, string $respuesta): void
+    {
+        $respuesta = Validador::texto(['respuesta' => $respuesta], 'respuesta', 3, 5000);
+        $conexion = Conexion::obtener();
+        $conexion->beginTransaction();
+
+        try {
+            $usuario = Conexion::consulta('SELECT rol,estado FROM usuarios WHERE id=? FOR UPDATE', [
+                $administrador
+            ])->fetch();
+
+            if (!$usuario || !$usuario['estado'] || $usuario['rol'] !== 'administrador') {
+                throw new DomainException(
+                    'Solo un administrador activo puede responder consultas.'
+                );
+            }
+
+            $mensaje = Conexion::consulta(
+                'SELECT id FROM mensajes_contacto WHERE id=? FOR UPDATE',
+                [$id]
+            )->fetch();
+
+            if (!$mensaje) {
+                throw new DomainException('La consulta ya no existe.');
+            }
+
+            Conexion::consulta(
+                "UPDATE mensajes_contacto SET respuesta=?,respondido_por=?,
+                 respuesta_fecha=UTC_TIMESTAMP(),estado='respondido' WHERE id=?",
+                [$respuesta, $administrador, $id]
+            );
+            $conexion->commit();
+        } catch (Throwable $error) {
+            $conexion->rollBack();
+            throw $error;
+        }
     }
 
     public function estado(int $id, string $estado): void
     {
-        Conexion::consulta('UPDATE mensajes_contacto SET estado=? WHERE id=?', [$estado, $id]);
+        if (!in_array($estado, ['nuevo', 'leido', 'respondido'], true)) {
+            throw new DomainException('Estado de consulta inválido.');
+        }
+
+        $conexion = Conexion::obtener();
+        $conexion->beginTransaction();
+
+        try {
+            $mensaje = Conexion::consulta(
+                'SELECT respuesta FROM mensajes_contacto WHERE id=? FOR UPDATE',
+                [$id]
+            )->fetch();
+
+            if (!$mensaje) {
+                throw new DomainException('La consulta ya no existe.');
+            }
+
+            if ($estado === 'respondido' && empty($mensaje['respuesta'])) {
+                throw new DomainException(
+                    'Escribe y guarda una respuesta antes de marcar como respondido.'
+                );
+            }
+
+            Conexion::consulta('UPDATE mensajes_contacto SET estado=? WHERE id=?', [$estado, $id]);
+            $conexion->commit();
+        } catch (Throwable $error) {
+            $conexion->rollBack();
+            throw $error;
+        }
     }
 
     public function eliminar(int $id): void
@@ -2270,15 +2410,30 @@ final class PublicoController
 
     public function enviar(): void
     {
-        postAccion(function (): void {
+        CsrfToken::verificar();
+
+        try {
             Intentos::registrar('contacto', 5, 900);
-            (new MensajeModel())->crear(
+            $usuario = AuthMiddleware::usuario();
+            $consulta = (new MensajeModel())->crear(
                 Validador::nombre($_POST),
                 Validador::correo($_POST),
                 Validador::texto($_POST, 'asunto', 3, 150),
-                Validador::texto($_POST, 'contenido', 10, 5000)
+                Validador::texto($_POST, 'contenido', 10, 5000),
+                $usuario ? (int) $usuario['id'] : null
             );
-        }, 'contactos');
+
+            flash('Consulta enviada. Aquí podrás leer la respuesta de nuestro equipo.');
+
+            if ($usuario) {
+                redirigir('mis-mensajes');
+            }
+
+            redirigir('consulta?token=' . $consulta['token']);
+        } catch (DomainException $error) {
+            flash($error->getMessage(), false);
+            redirigir('contactos#mensaje');
+        }
     }
 }
 
@@ -2370,7 +2525,7 @@ final class CarritoController
     private array $usuario;
     public function __construct()
     {
-        $this->usuario = AuthMiddleware::exigir(['cliente']);
+        $this->usuario = AuthMiddleware::exigir(AuthMiddleware::ROLES_COMPRA);
     }
 
     public function index(): void
@@ -2672,7 +2827,7 @@ final class PedidoController
 
     public function mios(): void
     {
-        AuthMiddleware::exigir(['cliente']);
+        AuthMiddleware::exigir(AuthMiddleware::ROLES_COMPRA);
         vista('admin/pedidos', [
             'pedidos' => (new PedidoModel())->listar((int) $this->usuario['id']),
             'cliente' => true
@@ -2681,7 +2836,7 @@ final class PedidoController
 
     public function detalle(): void
     {
-        $cliente = $this->usuario['rol'] === 'cliente';
+        $cliente = $this->usuario['rol'] === 'cliente' || ($_GET['propio'] ?? '') === '1';
         vista(
             'admin/pedido',
             [
@@ -2739,6 +2894,21 @@ final class MensajeController
                 Validador::entero($_POST, 'id'),
                 Validador::opcion($_POST, 'estado', ['nuevo', 'leido', 'respondido'])
             );
+        }, 'admin/mensajes');
+    }
+
+    public function responder(): void
+    {
+        $administrador = AuthMiddleware::exigir(['administrador']);
+
+        postAccion(function () use ($administrador): string {
+            (new MensajeModel())->responder(
+                Validador::entero($_POST, 'id'),
+                (int) $administrador['id'],
+                Validador::texto($_POST, 'respuesta', 3, 5000)
+            );
+
+            return 'Respuesta guardada. El cliente puede consultarla desde su cuenta o enlace privado.';
         }, 'admin/mensajes');
     }
 
@@ -3016,12 +3186,15 @@ final class MusicaController
 <?php endif; ?>
 <link
     rel="stylesheet"
-    href="<?= e(url('css/responsive.css?v=2')) ?>"
+    href="<?= e(url('css/responsive.css?v=3')) ?>"
 >
 <script
-    src="<?= e(url('js/app.js?v=8')) ?>"
+    src="<?= e(url('js/app.js?v=9')) ?>"
     defer
 ></script>
+<?php if ($archivo === 'admin/factura'): ?>
+    <link rel="stylesheet" href="<?= e(url('css/factura.css?v=1')) ?>">
+<?php endif; ?>
 <script
     src="<?= e(url('js/carrito.js?v=3')) ?>"
     defer
@@ -3100,7 +3273,7 @@ $accesoLogo = $actual ? ($actual['rol'] === 'cliente' ? 'mis-pedidos' : 'admin')
                         href="<?= e(url('productos')) ?>"
                     >La carta</a><a href="<?= e(url('contactos')) ?>">Contactos</a>
                     <?php if ($actual): ?>
-                        <?php if ($actual['rol'] === 'cliente'): ?>
+                        <?php if (AuthMiddleware::puedeComprar($actual)): ?>
                             <a href="<?= e(url('mis-pedidos')) ?>">Mis pedidos</a><a
                                 class="nav-chip"
                                 href="<?= e(url('carrito')) ?>"
@@ -3108,12 +3281,14 @@ $accesoLogo = $actual ? ($actual['rol'] === 'cliente' ? 'mis-pedidos' : 'admin')
                                     class="badge"
                                     data-cart-count
                                 >0</span></a>
-                        <?php else: ?>
+                        <?php endif; ?>
+                        <?php if ($actual['rol'] !== 'cliente'): ?>
                             <a
                                 class="nav-chip"
                                 href="<?= e(url('admin')) ?>"
                             >Mi panel ↗</a>
                         <?php endif; ?>
+                        <a href="<?= e(url('mis-mensajes')) ?>">Mis mensajes</a>
                         <a href="<?= e(url('musica')) ?>">Música ♫</a><a href="<?= e(url('perfil')) ?>">Mi perfil</a>
                         <form
                             method="post"
@@ -3303,6 +3478,10 @@ $accesoLogo = $actual ? ($actual['rol'] === 'cliente' ? 'mis-pedidos' : 'admin')
                     <a href="<?= e(url('admin/mensajes')) ?>">✉ &nbsp; Mensajes</a>
                 <?php endif; ?>
                 <a href="<?= e(url('perfil')) ?>">○ &nbsp; Mi perfil</a>
+                <?php if (AuthMiddleware::puedeComprar($actual)): ?>
+                    <a href="<?= e(url('carrito')) ?>">▣ &nbsp; Mi carrito</a>
+                    <a href="<?= e(url('mis-pedidos')) ?>">▤ &nbsp; Mis pedidos personales</a>
+                <?php endif; ?>
                 <a href="<?= e(url()) ?>">↗ &nbsp; Ver sitio público</a>
             </nav>
             <!-- Botón de Contraste (contrast / brightness-medium / theme-light-dark) -->
@@ -3628,7 +3807,7 @@ $accesoLogo = $actual ? ($actual['rol'] === 'cliente' ? 'mis-pedidos' : 'admin')
 require __DIR__ . '/tarjetas.php';
 ?>
 <p class="catalogo-nota">El stock y el precio se verifican al confirmar tu pedido. Encuentra tus
-    favoritos y agrégalos a tu carrito desde tu cuenta de cliente.</p>
+    favoritos y agrégalos a tu carrito desde tu cuenta.</p>
 
 ````
 
@@ -3660,7 +3839,7 @@ require __DIR__ . '/tarjetas.php';
                 <p><?= e($producto['descripcion']) ?></p>
                 <div class="producto-final">
                     <small> <?= $producto['stock'] > 0 ? e($producto['stock']) . ' disponibles' : 'Agotado' ?> </small>
-                    <?php if ($actual && $actual['rol'] === 'cliente'): ?>
+                    <?php if (AuthMiddleware::puedeComprar($actual)): ?>
                         <button
                             class="agregar"
                             data-add
@@ -3786,7 +3965,9 @@ $mapaIntegrado = Negocio::mapaIntegrado();
     >
         <p class="etiqueta">CONVERSEMOS</p>
         <h2>Escríbenos algo.</h2>
-        <p class="muted">Guardaremos tu consulta para que nuestro equipo pueda atenderla.</p>
+        <p class="muted">
+            <?= $actual ? 'La respuesta aparecerá en Mis mensajes de tu cuenta.' : 'Al enviar recibirás un enlace privado para leer nuestra respuesta.' ?>
+        </p>
         <form
             method="post"
             action="<?= e(url('contactos')) ?>"
@@ -3795,6 +3976,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
             <label> Tu nombre
                 <input
                     name="nombre"
+                    value="<?= e($actual['nombre'] ?? '') ?>"
                     minlength="3"
                     maxlength="120"
                     pattern="[\p{L}][\p{L}\p{M}]*(?:[ '’\-][\p{L}][\p{L}\p{M}]*)*"
@@ -3809,6 +3991,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
                 <input
                     type="email"
                     name="correo"
+                    value="<?= e($actual['correo'] ?? '') ?>"
                     maxlength="190"
                     autocomplete="email"
                     placeholder="tu@correo.com"
@@ -4639,7 +4822,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-                            <a href="<?= e(url('pedido?id=' . $pedido['id'])) ?>">Ver detalle →</a>
+                            <a href="<?= e(url('pedido?id=' . $pedido['id'] . ($cliente ? '&propio=1' : ''))) ?>">Ver detalle →</a>
                             <a
                                 class="boton pequeno secundario"
                                 href="<?= e(url(($cliente ? 'factura' : 'admin/factura') . '?id=' . $pedido['id'])) ?>"
@@ -4675,7 +4858,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
             class="boton"
             href="<?= e(url(($cliente ? 'factura' : 'admin/factura') . '?id=' . $pedido['id'])) ?>"
             target="_blank"
-        > Emitir Factura 📄 </a>
+        > Ver / imprimir factura 📄 </a>
     </div>
 </div>
 <section class="tarjeta">
@@ -4693,7 +4876,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
                 class="muted"
                 style="margin: 0;"
             >Fecha de emisión:</p>
-            <strong><?= e(date('d/m/Y H:i', strtotime($pedido['fecha']))) ?></strong>
+            <strong><?= e(fechaBolivia($pedido['fecha'])) ?></strong>
         </div>
     </div>
     <div class="tabla-contenedor">
@@ -4768,19 +4951,48 @@ $mapaIntegrado = Negocio::mapaIntegrado();
 ## 58. app/views/admin/mensajes.php
 ````php
 <div class="titulo-seccion">
-    <h1>Mensajes de contacto</h1><span class="muted">Últimos 500 mensajes</span>
+    <div>
+        <h1>Mensajes de contacto</h1>
+        <p class="muted">Escribe la respuesta aquí. Se mostrará en la cuenta o enlace privado de la consulta.</p>
+    </div>
+    <span class="muted">Últimos 500 mensajes</span>
 </div>
 <div class="mensajes-grid">
     <?php foreach ($mensajes as $mensaje): ?>
         <article class="tarjeta">
             <div class="titulo-seccion">
-                <h2><?= e($mensaje['asunto']) ?></h2><span class="estado <?= $mensaje['estado'] === 'nuevo' ? 'pendiente' : 'entregado' ?>"><?= e($mensaje['estado']) ?></span>
+                <h2><?= e($mensaje['asunto']) ?></h2>
+                <span class="estado <?= empty($mensaje['respuesta']) ? 'pendiente' : 'entregado' ?>">
+                    <?= $mensaje['estado'] === 'respondido' && empty($mensaje['respuesta'])
+                        ? 'Sin respuesta guardada'
+                        : e($mensaje['estado']) ?>
+                </span>
             </div>
-            <p><strong><?= e($mensaje['nombre']) ?></strong><br><?= e($mensaje['correo']) ?> · <?= e($mensaje['fecha']) ?> UTC</p>
+            <p><strong><?= e($mensaje['nombre']) ?></strong><br><?= e($mensaje['correo']) ?> · <?= e(fechaBolivia($mensaje['fecha'])) ?></p>
             <details>
                 <summary>Leer consulta</summary>
                 <p class="texto-mensaje"><?= e($mensaje['contenido']) ?></p>
             </details>
+            <form method="post" action="<?= e(url('admin/mensajes/responder')) ?>">
+                <?= CsrfToken::campo() ?>
+                <input type="hidden" name="id" value="<?= e($mensaje['id']) ?>">
+                <label>
+                    Respuesta al cliente
+                    <textarea name="respuesta" minlength="3" maxlength="5000" required><?= e($mensaje['respuesta'] ?? '') ?></textarea>
+                </label>
+                <button><?= empty($mensaje['respuesta']) ? 'Guardar respuesta' : 'Actualizar respuesta' ?></button>
+            </form>
+            <?php if (!empty($mensaje['respuesta_fecha'])): ?>
+                <p class="muted">Última respuesta: <?= e(fechaBolivia($mensaje['respuesta_fecha'])) ?></p>
+            <?php endif; ?>
+            <?php if (empty($mensaje['usuario_id'])): ?>
+                <p class="muted">
+                    <?= !empty($mensaje['token_hash'])
+                        ? 'El visitante puede leerla con el enlace privado que recibió al enviar su consulta.'
+                        : 'Esta consulta antigua no tiene cuenta ni enlace privado. Contacta al remitente por correo.' ?>
+                </p>
+                <a class="texto-link" href="<?= e('mailto:' . $mensaje['correo'] . '?subject=' . rawurlencode('Respuesta: ' . $mensaje['asunto']) . '&body=' . rawurlencode($mensaje['respuesta'] ?? '')) ?>">Abrir correo para responder ↗</a>
+            <?php endif; ?>
             <form
                 class="form-inline"
                 method="post"
@@ -4797,6 +5009,7 @@ $mapaIntegrado = Negocio::mapaIntegrado();
                             <option
                                 value="<?= e($estado) ?>"
                                 <?= $mensaje['estado'] === $estado ? 'selected' : '' ?>
+                                <?= $estado === 'respondido' && empty($mensaje['respuesta']) ? 'disabled' : '' ?>
                             ><?= e($estado) ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -8445,6 +8658,17 @@ label,
 document.querySelectorAll('[data-print]').forEach((button) => {
     button.addEventListener('click', () => window.print());
 });
+
+document.querySelectorAll('[data-copy-link]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(location.href);
+            button.textContent = 'Enlace copiado';
+        } catch {
+            window.prompt('Copia este enlace privado:', location.href);
+        }
+    });
+});
 (() => {
     const buttons = document.querySelectorAll('.theme-rotator');
     function applyTheme(theme) {
@@ -9955,6 +10179,12 @@ echo "Instalación local completada. Base nueva y usuario de aplicación con per
 
 ## 82. iniciar.ps1
 ````powershell
+param(
+    [string]$Escuchar = '0.0.0.0',
+    [ValidateRange(1024, 65535)]
+    [int]$Puerto = 8080
+)
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $phpCommand = Get-Command php -ErrorAction SilentlyContinue
@@ -9977,8 +10207,41 @@ if ($gd -eq '0') {
     $phpOptions += @('-d', 'extension=gd')
 }
 $phpOptions += @('-d', ('upload_tmp_dir=' + (Join-Path $PSScriptRoot 'storage/tmp')), '-d', 'upload_max_filesize=20M', '-d', 'post_max_size=24M')
-Write-Output 'CafeBar MVC: http://127.0.0.1:8080/ | Detener: Ctrl+C'
-& $phpExecutable @phpOptions -S 127.0.0.1:8080 -t public public/router.php
+$direccionLocal = $Escuchar
+if ($Escuchar -eq '0.0.0.0') {
+    $direccionLocal = '127.0.0.1'
+}
+
+Write-Output ('CafeBar MVC: http://' + $direccionLocal + ':' + $Puerto + '/')
+
+if ($Escuchar -ne '127.0.0.1') {
+    $interfaces = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()
+
+    foreach ($interfaz in $interfaces) {
+        if ($interfaz.OperationalStatus -ne 'Up') {
+            continue
+        }
+
+        $propiedades = $interfaz.GetIPProperties()
+        if ($propiedades.GatewayAddresses.Count -eq 0) {
+            continue
+        }
+
+        foreach ($direccion in $propiedades.UnicastAddresses) {
+            if ($direccion.Address.AddressFamily -ne 'InterNetwork') {
+                continue
+            }
+
+            $ip = $direccion.Address.ToString()
+            if ($Escuchar -eq '0.0.0.0' -or $Escuchar -eq $ip) {
+                Write-Output ('Otros dispositivos en la misma red: http://' + $ip + ':' + $Puerto + '/')
+            }
+        }
+    }
+}
+
+Write-Output 'Mantener este equipo encendido. Detener: Ctrl+C'
+& $phpExecutable @phpOptions -S ($Escuchar + ':' + $Puerto) -t public public/router.php
 
 ````
 
@@ -10487,10 +10750,10 @@ Post 'admin/mensajes/estado' @{
     id     = $messageId
     estado = 'leido'
 } $session | Out-Null
-Post 'admin/mensajes/estado' @{
+Post 'admin/mensajes/responder' @{
     csrf   = $csrf
     id     = $messageId
-    estado = 'respondido'
+    respuesta = 'Respuesta escrita por la prueba de integración.'
 } $session | Out-Null
 Post 'admin/mensajes/eliminar' @{
     csrf = $csrf
@@ -10892,10 +11155,10 @@ Sistema web MVC para cafetería, bar y restaurante desarrollado con arquitectura
    - Ranking de productos más vendidos con gráfico de barras porcentuales.
    - Agrupación de ventas diarias y exportación directa a **CSV / Excel**.
 
-5. **Emisión de Facturas Fiscales Bolivianas Imprimibles:**
-   - Generación de factura legal con Número correlativo, NIT emisor (72320623018), Código de Autorización y Código Único de Facturación (CUF).
+5. **Vista de Factura de Demostración Imprimible:**
+   - Datos reales del pedido, referencia, comprador y fechas de Bolivia. El documento está identificado como demostración; no emite facturas fiscales ni inventa NIT, CUF, autorización o QR.
    - Conversión automática del importe total a palabras (numeral a literal en Bolivianos).
-   - Edición en caliente del NIT/CI y Razón Social del cliente antes de imprimir.
+   - Edición del NIT/CI y razón social del comprador para esa impresión, desde la ruta autorizada de cada cuenta.
    - Formato listo para impresión física con hoja de estilos `@media print`.
 
 6. **Canales de Contacto Directo:**
@@ -10942,9 +11205,19 @@ Sistema web MVC para cafetería, bar y restaurante desarrollado con arquitectura
    ```
    - O mediante el servidor interno de PHP:
    ```bash
-   php -S 127.0.0.1:8080 -t public public/router.php
+   php -S 0.0.0.0:8080 -t public public/router.php
    ```
    - Abrir en el navegador: [http://127.0.0.1:8080/](http://127.0.0.1:8080/)
+
+### Abrir desde un teléfono u otro equipo
+
+`./iniciar.ps1` escucha en la red local y muestra el enlace con la IP del equipo. Ambos dispositivos deben conectarse a la misma red Wi-Fi o LAN. En el otro dispositivo abre `http://IP_DEL_EQUIPO:8080/`; `127.0.0.1` siempre se refiere al dispositivo que abre el enlace. Mantén encendido el equipo que ejecuta PHP. La IP puede cambiar al reconectar el Wi-Fi.
+
+Para limitar el servidor al equipo actual, usa `./iniciar.ps1 -Escuchar 127.0.0.1`. El puerto se puede cambiar con `-Puerto 8081`. Si el firewall bloquea el acceso, permite PHP para la red local; no es necesario desactivar el firewall. Este servidor de desarrollo no publica el proyecto en Internet.
+
+### Actualizar una instalación existente
+
+Después de actualizar el código, ejecuta `php database/actualizar-contactos.php` con las credenciales de mantenimiento en `CAFEBAR_INSTALL_USER` y `CAFEBAR_INSTALL_PASSWORD`, si son necesarias. Añade las columnas de respuesta, propietario y seguimiento privado sin eliminar consultas anteriores. La cuenta web conserva sus permisos limitados de lectura y escritura.
 
 ---
 
@@ -10975,7 +11248,13 @@ El administrador registra usuarios desde **Mi panel → Usuarios**. El sistema c
 
 Las contraseñas nuevas requieren al menos **8 caracteres**, con un máximo de 72 bytes para evitar el truncamiento de bcrypt. Esta regla se aplica al registro público, al alta administrativa y al cambio de contraseña del perfil. Cambiar una contraseña requiere la actual; las contraseñas existentes conservan su acceso.
 
-El panel **Mensajes de contacto** recibe las consultas del formulario **Contactos → Escríbenos algo** y las guarda en **cafebar_mvc → mensajes_contacto**. Los enlaces a WhatsApp abren un canal independiente. Marcar un mensaje como leído o respondido actualiza su estado; no envía correo ni mensajes de WhatsApp.
+El panel **Mensajes de contacto** recibe las consultas de **Contactos → Escríbenos algo** y las guarda en **cafebar_mvc → mensajes_contacto**. El administrador escribe en **Respuesta al cliente → Guardar respuesta**; el estado pasa a respondido y se guarda la fecha. Cambiar solo la etiqueta a respondido se rechaza si no hay una respuesta escrita.
+
+Los usuarios con sesión ven sus consultas en **Mis mensajes**. Los visitantes reciben un enlace privado al enviar el formulario: deben guardarlo para leer la respuesta. Ese enlace da acceso a la consulta y se almacena como hash. Las consultas anteriores sin propietario ni enlace privado siguen en el panel; el administrador puede abrir el correo del remitente para responderlas manualmente. La aplicación no envía correo automáticamente ni integra las conversaciones de WhatsApp.
+
+Las cuentas **cliente y administrador** pueden usar la carta, su carrito y **Mis pedidos**. El administrador conserva su rol y panel; sus compras se vinculan a su propio ID y descuentan stock mediante la misma transacción. El personal empleado mantiene el acceso operativo y no compra desde su cuenta.
+
+**Facturas:** la vista usa los datos del pedido, estilos externos compatibles con CSP y el botón **Imprimir / guardar PDF**. Los datos del comprador aparecen antes del detalle. El importe en letras admite miles y millones. El NIT del emisor solo se muestra si se configura en `datos-negocio.php` o `COFFE_NIT`. La emisión fiscal real requiere la integración y configuración tributaria del negocio, que no forman parte de esta demostración.
 
 Para comprobar validaciones, altas administrativas, registro público, cambio de contraseña y recepción de contactos por HTTP, ejecuta `php tests/usuarios.php`. La prueba crea y conserva una base aislada `cafebar_users_*`, comprueba los registros desde otra conexión MySQL y detiene su servidor temporal al terminar. Usa las variables `CAFEBAR_TEST_DSN`, `CAFEBAR_TEST_USER` y `CAFEBAR_TEST_PASSWORD` si la cuenta local de pruebas requiere configuración.
 
@@ -11024,6 +11303,15 @@ Desarrollado con dedicación para **caffe music bar**.
 ## 94. VERIFICACION.md
 ````text
 # Verificación realizada
+
+## Respuestas, compras del administrador, red local y factura
+
+- Migración de contactos ejecutada dos veces sin perder consultas: propietario por ID de sesión, enlace privado con hash, respuesta, administrador responsable y fecha UTC.
+- HTTP en base aislada: respuesta del administrador visible al visitante con su enlace y al cliente en Mis mensajes; no hay asociación automática por correo. Se rechazaron consultas por ID adivinable, tokens inexistentes, suplantación de propietario, respuestas sin rol administrativo y CSRF inválido. No se permite marcar respondido sin texto.
+- Compra del administrador por HTTP: selección desde la carta, confirmación, descuento de stock, carrito vaciado, pedido vinculado al administrador y acceso administrativo conservado. Los empleados siguen sin acceso a compras. No se hicieron compras en la base de uso habitual.
+- Factura: CSS externo servido por HTTP, botón data-print con JavaScript externo, datos antes del detalle, NIT y razón social del comprador editables por la ruta propia, acceso a documentos ajenos rechazado y datos malformados con estado 422. Se comprobaron importes desde cero hasta un millón, incluidos 1.250,50. No se generaron códigos fiscales simulados.
+- Red: se inició un servidor PHP en la dirección Wi-Fi del equipo y se comprobaron Inicio y los recursos por esa dirección. La regla existente de Windows permite PHP/TCP en el perfil activo; no se desactivó ni se cambió el firewall. No se dispuso de un segundo dispositivo para verificar el recorrido completo desde otro equipo.
+- La factura es de demostración. La prueba del botón comprueba la llamada a window.print; no se completó un diálogo físico de impresión ni se emitió una factura fiscal real.
 
 ## Código legible e indentación multilínea
 
@@ -11322,6 +11610,13 @@ $files = @(
     'tests/responsive-musica-http.ps1'
     'tests/usuarios.php'
     '.editorconfig'
+    'app/controllers/ConsultaController.php'
+    'app/helpers/ImporteLiteral.php'
+    'app/views/publico/mensajes.php'
+    'database/actualizar-contactos.php'
+    'public/css/factura.css'
+    'tests/importe-literal.php'
+    'tests/impresion.js'
 )
 $text = New-Object System.Text.StringBuilder
 [void]$text.AppendLine('# CafeBar MVC: construccion y codigo completo')
@@ -11502,53 +11797,33 @@ final class ReporteController
     public function factura(): void
     {
         AuthMiddleware::exigir(['administrador', 'empleado']);
-        $id = Validador::entero($_GET, 'id');
-
-        $model = new ReporteModel();
-        $factura = $model->datosFactura($id);
-
-        $nitCliente = trim($_GET['nit'] ?? '');
-        $razonSocial = trim($_GET['razon_social'] ?? '');
-
-        if ($nitCliente === '') {
-            $nitCliente = '0';
-        }
-        if ($razonSocial === '') {
-            $razonSocial = $factura['cliente'];
-        }
-
-        $literalTotal = $this->convertirNumeroALetras((float) $factura['total']);
-
-        vista(
-            'admin/factura',
-            [
-                'factura' => $factura,
-                'nitCliente' => $nitCliente,
-                'razonSocial' => $razonSocial,
-                'literalTotal' => $literalTotal,
-                'negocio' => Negocio::datos()
-            ],
-            true
-        );
+        $this->mostrarFactura(true);
     }
 
     public function facturaCliente(): void
     {
-        $id = Validador::entero($_GET, 'id');
-        $model = new ReporteModel();
-        $factura = $model->datosFactura($id);
+        $this->mostrarFactura(false);
+    }
 
-        // Si es cliente, validar que el pedido le pertenece
-        if (
-            $this->usuario['rol'] === 'cliente' &&
-            (int) $factura['usuario_id'] !== (int) $this->usuario['id']
-        ) {
+    private function mostrarFactura(bool $panel): void
+    {
+        $id = Validador::entero($_GET, 'id');
+        $factura = (new ReporteModel())->datosFactura($id);
+
+        if (!$panel && (int) $factura['usuario_id'] !== (int) $this->usuario['id']) {
+            http_response_code(403);
             throw new DomainException('No tienes permiso para ver la factura de este pedido.');
         }
 
-        $nitCliente = trim($_GET['nit'] ?? '0');
-        $razonSocial = trim($_GET['razon_social'] ?? $factura['cliente']);
-        $literalTotal = $this->convertirNumeroALetras((float) $factura['total']);
+        $nitCliente = isset($_GET['nit']) ? Validador::texto($_GET, 'nit', 1, 25) : '0';
+        if (!preg_match('/^[a-zA-Z0-9-]{1,25}$/D', $nitCliente)) {
+            throw new DomainException('El NIT o CI solo admite letras, números y guiones.');
+        }
+
+        $razonSocial = $factura['cliente'];
+        if (isset($_GET['razon_social'])) {
+            $razonSocial = Validador::texto($_GET, 'razon_social', 3, 120);
+        }
 
         vista(
             'admin/factura',
@@ -11556,95 +11831,14 @@ final class ReporteController
                 'factura' => $factura,
                 'nitCliente' => $nitCliente,
                 'razonSocial' => $razonSocial,
-                'literalTotal' => $literalTotal,
-                'negocio' => Negocio::datos()
+                'literalTotal' => ImporteLiteral::bolivianos((string) $factura['total']),
+                'negocio' => Negocio::datos(),
+                'rutaFactura' => $panel ? 'admin/factura' : 'factura',
+                'volver' => $panel ? 'admin/pedidos' : 'mis-pedidos',
+                'fechaEmision' => fechaBolivia(gmdate('Y-m-d H:i:s'))
             ],
-            false
+            $panel
         );
-    }
-
-    private function convertirNumeroALetras(float $numero): string
-    {
-        $centavos = (int) round(($numero - floor($numero)) * 100);
-        $entero = (int) floor($numero);
-
-        $unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
-        $especiales = [
-            11 => 'ONCE',
-            12 => 'DOCE',
-            13 => 'TRECE',
-            14 => 'CATORCE',
-            15 => 'QUINCE',
-            16 => 'DIECISEIS',
-            17 => 'DIECISIETE',
-            18 => 'DIECIOCHO',
-            19 => 'DIECINUEVE'
-        ];
-        $decenas = [
-            '',
-            'DIEZ',
-            'VEINTE',
-            'TREINTA',
-            'CUARENTA',
-            'CINCUENTA',
-            'SESENTA',
-            'SETENTA',
-            'OCHENTA',
-            'NOVENTA'
-        ];
-        $centenas = [
-            '',
-            'CIENTO',
-            'DOSCIENTOS',
-            'TRESCIENTOS',
-            'CUATROCIENTOS',
-            'QUINIENTOS',
-            'SEISCIENTOS',
-            'SETECIENTOS',
-            'OCHOCIENTOS',
-            'NOVECIENTOS'
-        ];
-
-        if ($entero === 0) {
-            $texto = 'CERO';
-        } elseif ($entero === 100) {
-            $texto = 'CIEN';
-        } else {
-            $c = (int) ($entero / 100);
-            $resto = $entero % 100;
-            $d = (int) ($resto / 10);
-            $u = $resto % 10;
-
-            $partes = [];
-            if ($c > 0) {
-                $partes[] = $centenas[$c];
-            }
-
-            if ($resto > 10 && $resto < 20) {
-                $partes[] = $especiales[$resto];
-            } else {
-                if ($d > 0) {
-                    if ($d === 2 && $u > 0) {
-                        $partes[] = 'VEINTI' . $unidades[$u];
-                        $u = 0;
-                    } else {
-                        $partes[] = $decenas[$d];
-                    }
-                }
-                if ($u > 0) {
-                    if ($d > 2) {
-                        $partes[] = 'Y';
-                    }
-                    $partes[] = $unidades[$u];
-                }
-            }
-            $texto = implode(' ', $partes);
-        }
-
-        return trim($texto) .
-            ' ' .
-            str_pad((string) $centavos, 2, '0', STR_PAD_LEFT) .
-            '/100 BOLIVIANOS';
     }
 }
 
@@ -11759,15 +11953,9 @@ final class ReporteModel
         $sqlDetalles = 'SELECT * FROM detalle_pedido WHERE pedido_id = ? ORDER BY id ASC';
         $pedido['items'] = Conexion::consulta($sqlDetalles, [$pedidoId])->fetchAll();
 
-        // Generar código de autorización y control fiscal de demostración
+        // Referencia de demostración. La aplicación no ha emitido un documento fiscal.
         $pedido['nro_factura'] = str_pad((string) $pedido['id'], 6, '0', STR_PAD_LEFT);
-        $pedido['autorizacion'] = strtoupper(
-            substr(hash('sha256', 'FACTURA_' . $pedido['id'] . '_' . $pedido['fecha']), 0, 16)
-        );
-        $pedido['cuf'] = strtoupper(
-            substr(hash('sha256', 'CUF_' . $pedido['id'] . '_' . $pedido['total']), 0, 32)
-        );
-        $pedido['control'] = strtoupper(substr(hash('sha256', 'CTRL_' . $pedido['id']), 0, 8));
+        $pedido['es_demostracion'] = true;
 
         return $pedido;
     }
@@ -11777,261 +11965,107 @@ final class ReporteModel
 
 ## 101. app/views/admin/factura.php
 ````php
-<div
-    class="no-print"
-    style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;"
->
+<section class="factura-botonera no-print">
     <div>
-        <a
-            class="texto-link"
-            href="<?= e(url('admin/reportes')) ?>"
-        >← Volver a Reportes</a>
-        <h1 style="font-size: 2rem; margin-top: 0.5rem; margin-bottom: 0;">Emisión de Factura Fiscal
-        </h1>
-        <p class="muted">Documento comercial y tributario para el pedido #<?= e((string) $factura['id']) ?></p>
+        <a class="texto-link" href="<?= e(url($volver)) ?>">← Volver a pedidos</a>
+        <h1>Emisión de factura</h1>
+        <p class="muted">Vista de demostración del pedido #<?= e($factura['id']) ?></p>
     </div>
-    <div class="acciones">
-        <button
-            class="boton"
-            type="button"
-            onclick="window.print()"
-        > Imprimir Factura 🖨️ </button>
-    </div>
-</div>
-<!-- Formulario para personalizar NIT y Razón Social antes de imprimir -->
-<div
-    class="tarjeta no-print"
-    style="margin-bottom: 2rem;"
->
-    <form
-        method="get"
-        action="<?= e(url('admin/factura')) ?>"
-        style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;"
-    >
-        <input
-            type="hidden"
-            name="id"
-            value="<?= e((string) $factura['id']) ?>"
-        >
-        <label> Razón Social / Nombre del Cliente
-            <input
-                type="text"
-                name="razon_social"
-                value="<?= e($razonSocial) ?>"
-                required
-            >
+    <button class="boton" type="button" data-print>Imprimir / guardar PDF</button>
+</section>
+
+<section class="tarjeta no-print factura-edicion">
+    <h2>Datos del comprador</h2>
+    <p class="muted">Actualiza los datos de esta impresión antes de abrir el diálogo de impresión.</p>
+    <form class="factura-formulario" method="get" action="<?= e(url($rutaFactura)) ?>">
+        <input type="hidden" name="id" value="<?= e($factura['id']) ?>">
+        <label>
+            Razón social / nombre
+            <input name="razon_social" value="<?= e($razonSocial) ?>" minlength="3" maxlength="120" required>
         </label>
-        <label> NIT / CI del Cliente
-            <input
-                type="text"
-                name="nit"
-                value="<?= e($nitCliente) ?>"
-                placeholder="0 para Sin Nombre / Particular"
-                required
-            >
+        <label>
+            NIT / CI del comprador
+            <input name="nit" value="<?= e($nitCliente) ?>" pattern="[a-zA-Z0-9\-]{1,25}" maxlength="25" required>
         </label>
-        <button class="boton secundario">Actualizar datos de factura</button>
+        <button class="secundario">Actualizar datos</button>
     </form>
-</div>
-<!-- Factura Fiscal Imprimible -->
-<div
-    class="factura-documento"
-    id="seccion-factura"
->
-    <!-- Cabecera de la factura -->
-    <div class="factura-header">
-        <div class="factura-empresa">
-            <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.5rem;">
-                <img
-                    src="<?= e(url('images/logo.svg')) ?>"
-                    alt="Logo caffe music bar"
-                    width="48"
-                    height="48"
-                    style="border-radius: 8px;"
-                >
-                <div>
-                    <h2 style="margin: 0; font-size: 1.5rem; line-height: 1; color: #111;">caffe
-                        music bar</h2>
-                    <small style="color: #555; font-weight: 600; letter-spacing: 0.1em;">DE: CAFFE
-                        MUSIC BAR S.R.L.</small>
-                </div>
-            </div>
-            <p style="margin: 0; font-size: 0.8rem; line-height: 1.4; color: #444;">
-                <strong>CASA MATRIZ:</strong> <?= e($negocio['direccion']) ?><br>
-                <strong>CIUDAD:</strong> <?= e($negocio['ciudad']) ?><br>
-                <strong>TELÉFONO / WHATSAPP:</strong> <?= e($negocio['whatsapp']) ?>
-            </p>
-        </div>
-        <!-- Recuadro fiscal -->
-        <div class="factura-fiscal-box">
-            <div
-                style="text-align: center; border: 2px solid #222; padding: 0.8rem 1.2rem; border-radius: 6px;">
-                <p style="margin: 0; font-size: 0.85rem; font-weight: 700;">NIT: 72320623018</p>
-                <p
-                    style="margin: 0.2rem 0; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.05em; color: #a06428;">
-                    FACTURA N° <?= e($factura['nro_factura']) ?></p>
-                <p style="margin: 0; font-size: 0.72rem; color: #333;">CÓD. AUTORIZACIÓN:<br><span
-                        style="word-break: break-all; font-family: monospace;"
-                    ><?= e($factura['autorizacion']) ?></span></p>
-            </div>
-            <p
-                style="margin-top: 0.4rem; text-align: center; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; color: #444;">
-                ORIGINAL</p>
-        </div>
-    </div>
-    <hr style="border: 0; border-top: 1px dashed #999; margin: 1.2rem 0;">
-    <!-- Datos del comprador y fecha -->
-    <div
-        class="factura-datos-cliente"
-        style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.85rem; color: #222;"
-    >
+</section>
+
+<article class="factura-documento" id="seccion-factura">
+    <header class="factura-encabezado">
         <div>
-            <p style="margin: 0;"><strong>Fecha y Hora:</strong> <?= e(date('d/m/Y H:i', strtotime($factura['fecha']))) ?></p>
-            <p style="margin: 0.3rem 0 0;"><strong>Señor(es):</strong> <?= e($razonSocial) ?></p>
+            <div class="factura-marca">
+                <img src="<?= e(url('images/logo.svg')) ?>" alt="" width="56" height="56">
+                <h2><?= e($negocio['nombre']) ?></h2>
+            </div>
+            <p><?= e($negocio['direccion']) ?><br><?= e($negocio['ciudad']) ?></p>
+            <p>Teléfono: <?= e($negocio['telefono']) ?></p>
+            <?php if (!empty($negocio['nit'])): ?>
+                <p>NIT del emisor: <?= e($negocio['nit']) ?></p>
+            <?php endif; ?>
         </div>
-        <div style="text-align: right;">
-            <p style="margin: 0;"><strong>N° Pedido Ref.:</strong> #<?= e((string) $factura['id']) ?></p>
-            <p style="margin: 0.3rem 0 0;"><strong>NIT / CI / CEX:</strong> <?= e($nitCliente) ?></p>
+        <div class="factura-referencia">
+            <strong>FACTURA DE DEMOSTRACIÓN</strong>
+            <span>Referencia <?= e($factura['nro_factura']) ?></span>
+            <span>Pedido #<?= e($factura['id']) ?></span>
+            <span><?= e(ucfirst($factura['estado'])) ?></span>
         </div>
-    </div>
-    <!-- Detalle de productos -->
-    <table
-        class="factura-tabla"
-        style="width: 100%; border-collapse: collapse; margin-top: 1.2rem; font-size: 0.85rem;"
-    >
-        <thead>
-            <tr style="border-bottom: 2px solid #222; text-align: left;">
-                <th style="padding: 0.5rem 0; width: 10%;">Cant.</th>
-                <th style="padding: 0.5rem 0; width: 55%;">Concepto / Detalle</th>
-                <th style="padding: 0.5rem 0; width: 18%; text-align: right;">P. Unitario</th>
-                <th style="padding: 0.5rem 0; width: 17%; text-align: right;">Subtotal</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($factura['items'] as $item): ?>
-                <tr style="border-bottom: 1px solid #ddd;">
-                    <td style="padding: 0.6rem 0;"><?= e((string) $item['cantidad']) ?></td>
-                    <td style="padding: 0.6rem 0;"><?= e($item['nombre_producto']) ?></td>
-                    <td style="padding: 0.6rem 0; text-align: right;"><?= e(bs($item['precio_unitario'])) ?></td>
-                    <td style="padding: 0.6rem 0; text-align: right; font-weight: 600;"><?= e(bs($item['subtotal'])) ?>
-                    </td>
+    </header>
+
+    <dl class="factura-datos">
+        <div>
+            <dt>Señor(es) / razón social</dt>
+            <dd><?= e($razonSocial) ?></dd>
+        </div>
+        <div>
+            <dt>NIT / CI del comprador</dt>
+            <dd><?= e($nitCliente) ?></dd>
+        </div>
+        <div>
+            <dt>Fecha del pedido · Bolivia</dt>
+            <dd><?= e(fechaBolivia($factura['fecha'])) ?></dd>
+        </div>
+        <div>
+            <dt>Fecha de esta impresión · Bolivia</dt>
+            <dd><?= e($fechaEmision) ?></dd>
+        </div>
+    </dl>
+
+    <div class="factura-detalle">
+        <table class="factura-tabla">
+            <thead>
+                <tr>
+                    <th>Cantidad</th>
+                    <th>Descripción</th>
+                    <th>Precio unitario</th>
+                    <th>Subtotal</th>
                 </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-    <!-- Totales y Literal -->
-    <div
-        style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 1.2rem; gap: 2rem;">
-        <div style="font-size: 0.8rem; color: #444; max-width: 60%;">
-            <p style="margin: 0;"><strong>SON:</strong> <?= e($literalTotal) ?></p>
-            <p style="margin-top: 0.4rem; font-size: 0.72rem; color: #666;"> CUF: <span
-                    style="font-family: monospace; word-break: break-all;"
-                ><?= e($factura['cuf']) ?></span>
-            </p>
-        </div>
-        <div style="text-align: right; min-width: 180px;">
-            <div
-                style="display: flex; justify-content: space-between; font-size: 0.9rem; padding: 0.2rem 0;">
-                <span>SUBTOTAL:</span>
-                <strong><?= e(bs($factura['total'])) ?></strong>
-            </div>
-            <div
-                style="display: flex; justify-content: space-between; font-size: 0.9rem; padding: 0.2rem 0;">
-                <span>DESCUENTO:</span>
-                <span>Bs. 0,00</span>
-            </div>
-            <div
-                style="display: flex; justify-content: space-between; font-size: 1.15rem; font-weight: 800; border-top: 2px solid #222; padding-top: 0.4rem; margin-top: 0.3rem;">
-                <span>TOTAL:</span>
-                <span style="color: #a06428;"><?= e(bs($factura['total'])) ?></span>
-            </div>
-            <small style="display: block; font-size: 0.72rem; color: #666; margin-top: 0.2rem;">
-                Importe Base Crédito Fiscal: <?= e(bs($factura['total'])) ?> </small>
-        </div>
+            </thead>
+            <tbody>
+                <?php foreach ($factura['items'] as $item): ?>
+                    <tr>
+                        <td><?= e($item['cantidad']) ?></td>
+                        <td><?= e($item['nombre_producto']) ?></td>
+                        <td><?= e(bs($item['precio_unitario'])) ?></td>
+                        <td><?= e(bs($item['subtotal'])) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
-    <hr style="border: 0; border-top: 1px dashed #999; margin: 1.2rem 0;">
-    <!-- Pie de página fiscal con QR y leyendas normativas -->
-    <div style="display: grid; grid-template-columns: auto 1fr; gap: 1.5rem; align-items: center;">
-        <!-- Simulación visual de código QR fiscal -->
-        <div
-            style="width: 90px; height: 90px; background: #fff; border: 1px solid #111; padding: 6px; display: grid; place-content: center; text-align: center;">
-            <svg
-                viewBox="0 0 24 24"
-                width="76"
-                height="76"
-                fill="#111"
-            >
-        <path d="M2 2h8v8H2zm2 2v4h4V4zm10-2h8v8h-8zm2 2v4h4V4zM2 14h8v8H2zm2 2v4h4v-4zm10-2h2v2h-2zm4 0h2v2h-2zm-2 2h2v2h-2zm2 2h2v2h-2zm2-2h2v2h-2zm0 4h2v2h-2zm-6 0h2v2h-2zm-2-2h2v2h-2zm4-4h2v2h-2z"/>
-      </svg>
-        </div>
-        <div style="font-size: 0.72rem; line-height: 1.35; color: #444;">
-            <p style="margin: 0; font-weight: 700; text-align: center;"> "ESTA FACTURA CONTRIBUYE AL
-                DESARROLLO DEL PAÍS, EL USO ILÍCITO SERÁ SANCIONADO PENALMENTE DE ACUERDO A LEY"
-            </p>
-            <p style="margin: 0.3rem 0 0; text-align: center; color: #666;"> Ley N° 453: El
-                proveedor deberá suministrar el servicio en las condiciones ofertadas. </p>
-            <p
-                style="margin: 0.3rem 0 0; text-align: center; font-family: monospace; font-size: 0.68rem; color: #888;">
-                Código de Control: <?= e($factura['control']) ?> · Fecha Límite de Emisión: <?= e(date('d/m/Y', strtotime('+6 months'))) ?> </p>
-        </div>
+
+    <div class="factura-totales">
+        <p><strong>Son:</strong> <?= e($literalTotal) ?></p>
+        <p class="factura-total"><span>Total</span><strong><?= e(bs($factura['total'])) ?></strong></p>
     </div>
-</div>
-<style>
-    .factura-documento {
-        background: #ffffff;
-        color: #111111;
-        padding: 3rem;
-        border-radius: var(--radio-lg);
-        box-shadow: var(--sombra-m3-2);
-        max-width: 800px;
-        margin-inline: auto;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-    }
 
-    .factura-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 2rem;
-    }
-
-    @media print {
-        body {
-            background: #ffffff !important;
-            color: #000000 !important;
-        }
-
-        .sidebar,
-        .cabecera,
-        .pie,
-        .no-print,
-        .ondas-fondo,
-        .theme-rotator,
-        .anuncio {
-            display: none !important;
-        }
-
-        .panel-body,
-        .panel-main,
-        .contenedor,
-        .principal {
-            display: block !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-
-        .factura-documento {
-            box-shadow: none !important;
-            border: none !important;
-            padding: 0 !important;
-            max-width: 100% !important;
-            color: #000000 !important;
-        }
-    }
-</style>
+    <footer class="factura-aviso">
+        <p>Documento de demostración. Sin emisión fiscal ni acreditación de pago.</p>
+        <?php if ($factura['estado'] === 'cancelado'): ?>
+            <p><strong>Pedido cancelado.</strong></p>
+        <?php endif; ?>
+    </footer>
+</article>
 
 ````
 
@@ -12198,10 +12232,9 @@ final class ReporteModel
 >
     <div class="titulo-seccion">
         <div>
-            <p class="etiqueta">DOCUMENTOS FISCALES</p>
+            <p class="etiqueta">DOCUMENTOS DEL PEDIDO</p>
             <h2>Historial de Pedidos y Emisión de Facturas</h2>
-            <p class="muted">Haz clic en "Emitir / Ver Factura" para generar el documento tributario
-                imprimible.</p>
+            <p class="muted">Abre la vista de demostración para revisar los datos e imprimir el pedido.</p>
         </div>
     </div>
     <?php if ($pedidos): ?>
@@ -12221,7 +12254,7 @@ final class ReporteModel
                     <?php foreach ($pedidos as $p): ?>
                         <tr>
                             <td>#<?= e((string) $p['id']) ?></td>
-                            <td><?= e(date('d/m/Y H:i', strtotime($p['fecha']))) ?></td>
+                            <td><?= e(fechaBolivia($p['fecha'])) ?></td>
                             <td>
                                 <strong><?= e($p['cliente']) ?></strong>
                                 <small><?= e($p['correo']) ?></small>
@@ -12235,8 +12268,8 @@ final class ReporteModel
                                     class="boton pequeno"
                                     href="<?= e(url('admin/factura?id=' . $p['id'])) ?>"
                                     target="_blank"
-                                    title="Emitir o imprimir factura fiscal de este pedido"
-                                > Emitir Factura 📄 </a>
+                                    title="Ver e imprimir la factura de demostración del pedido"
+                                > Ver / imprimir factura 📄 </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -12270,6 +12303,16 @@ final class ReporteModel
 }
 fieldset {
     min-width: 0;
+}
+
+.respuesta-contacto {
+    border-top: 1px solid var(--line);
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+}
+
+.mensajes-grid article > form {
+    margin-top: 1.25rem;
 }
 .tabla-contenedor {
     max-width: 100%;
@@ -17720,7 +17763,7 @@ function solicitar(string $ruta, array &$cookies, ?array $datos = null): array
             $datos = null;
             continue;
         }
-        return ['status' => $status, 'html' => $html];
+        return ['status' => $status, 'html' => $html, 'ruta' => $ruta, 'headers' => $headers];
     }
     throw new RuntimeException('Demasiadas redirecciones.');
 }
@@ -17940,7 +17983,12 @@ try {
             $totalMensajes,
         'contacto rechaza nombres numéricos'
     );
-    solicitar('/contactos', $visitante, $mensaje);
+    $confirmacion = solicitar('/contactos', $visitante, $mensaje);
+    $enlacePrivado = $confirmacion['ruta'];
+    comprobar(
+        str_starts_with($enlacePrivado, '/consulta?token='),
+        'visitante recibe un enlace privado de seguimiento'
+    );
     $m = $lector
         ->query("SELECT * FROM mensajes_contacto WHERE correo='contacto@example.test'")
         ->fetch();
@@ -17951,14 +17999,190 @@ try {
             str_contains($respuesta['html'], $mensaje['asunto']),
         'Contactos guarda el mensaje y aparece en el panel'
     );
-    solicitar('/admin/mensajes/estado', $cookies, [
+    $sinRespuesta = solicitar('/admin/mensajes/estado', $cookies, [
         'csrf' => token($respuesta),
         'id' => $m['id'],
         'estado' => 'respondido'
     ]);
+    comprobar(
+        str_contains($sinRespuesta['html'], 'Escribe y guarda una respuesta'),
+        'no se marca respondido sin escribir una respuesta'
+    );
+    solicitar('/admin/mensajes/responder', $cookies, [
+        'csrf' => token($respuesta),
+        'id' => $m['id'],
+        'respuesta' => 'Hola, tenemos mesas disponibles. <script>alert(1)</script>'
+    ]);
     $q = $lector->prepare('SELECT estado FROM mensajes_contacto WHERE id=?');
     $q->execute([$m['id']]);
     comprobar($q->fetchColumn() === 'respondido', 'estado del mensaje persistido');
+
+    $lectura = solicitar($enlacePrivado, $visitante);
+    comprobar(
+        str_contains($lectura['html'], 'Hola, tenemos mesas disponibles.') &&
+            !str_contains($lectura['html'], '<script>alert(1)</script>'),
+        'visitante lee la respuesta con escape HTML'
+    );
+    comprobar(
+        $m['token_hash'] !== substr($enlacePrivado, strlen('/consulta?token=')),
+        'el enlace privado se almacena como hash'
+    );
+    $invalida = solicitar('/consulta?token=' . str_repeat('f', 64), $visitante);
+    comprobar($invalida['status'] === 404, 'token de consulta ajeno o inexistente rechazado');
+    $invalida = solicitar('/consulta?id=' . $m['id'], $visitante);
+    comprobar($invalida['status'] === 404, 'identificador numérico no revela consultas privadas');
+
+    $pagina = solicitar('/contactos', $cliente);
+    $mensajeCliente = array_replace($mensaje, [
+        'csrf' => token($pagina),
+        'asunto' => 'Consulta privada de cliente',
+        'usuario_id' => 1
+    ]);
+    $lectura = solicitar('/contactos', $cliente, $mensajeCliente);
+    comprobar(
+        $lectura['ruta'] === '/mis-mensajes' &&
+            str_contains($lectura['html'], $mensajeCliente['asunto']) &&
+            !str_contains($lectura['html'], $mensaje['asunto']),
+        'bandeja vinculada a la sesión y no al correo declarado'
+    );
+    $propia = $lector
+        ->query("SELECT * FROM mensajes_contacto WHERE asunto='Consulta privada de cliente'")
+        ->fetch();
+    comprobar(
+        (int) $propia['usuario_id'] === (int) $u['id'],
+        'el remitente no puede suplantar al propietario con el formulario'
+    );
+    $pagina = solicitar('/admin/mensajes', $cookies);
+    $denegada = solicitar('/admin/mensajes/responder', $cliente, [
+        'csrf' => token($lectura),
+        'id' => $propia['id'],
+        'respuesta' => 'Respuesta no autorizada'
+    ]);
+    comprobar($denegada['status'] === 403, 'cliente no responde como administrador');
+    $denegada = solicitar('/admin/mensajes/responder', $cookies, [
+        'csrf' => 'invalido',
+        'id' => $propia['id'],
+        'respuesta' => 'Respuesta no autorizada'
+    ]);
+    comprobar($denegada['status'] === 403, 'responder exige CSRF válido');
+    solicitar('/admin/mensajes/responder', $cookies, [
+        'csrf' => token($pagina),
+        'id' => $propia['id'],
+        'respuesta' => 'Tu reserva está disponible.'
+    ]);
+    $lectura = solicitar('/mis-mensajes', $cliente);
+    comprobar(
+        str_contains($lectura['html'], 'Tu reserva está disponible.'),
+        'cliente ve la respuesta desde Mis mensajes'
+    );
+    $ajena = solicitar('/mis-mensajes?usuario_id=' . $u['id'], $cookies);
+    comprobar(
+        !str_contains($ajena['html'], 'Tu reserva está disponible.'),
+        'la bandeja personal no acepta suplantación por URL'
+    );
+
+    $lector->exec('UPDATE productos SET precio=1250.50 WHERE id=1');
+    $stockAntes = (int) $lector->query('SELECT stock FROM productos WHERE id=1')->fetchColumn();
+    $pagina = solicitar('/productos', $cookies);
+    comprobar(
+        str_contains($pagina['html'], 'data-add'),
+        'administrador puede agregar productos desde la carta'
+    );
+    $pagina = solicitar('/carrito', $cookies);
+    preg_match('/name="token"\s+value="([^"]+)"/', $pagina['html'], $pedidoToken);
+    $compra = solicitar('/carrito/confirmar', $cookies, [
+        'csrf' => token($pagina),
+        'token' => $pedidoToken[1],
+        'items' => '{"1":1}'
+    ]);
+    $pedidoAdmin = $lector
+        ->query('SELECT * FROM pedidos WHERE usuario_id=1 ORDER BY id DESC LIMIT 1')
+        ->fetch();
+    comprobar(
+        $pedidoAdmin !== false &&
+            $compra['ruta'] === '/mis-pedidos' &&
+            str_contains($compra['html'], 'data-clear-cart="1"'),
+        'compra propia del administrador confirmada y carrito vaciado'
+    );
+    comprobar(
+        (int) $lector->query('SELECT stock FROM productos WHERE id=1')->fetchColumn() ===
+            $stockAntes - 1 && fila('admin')['rol'] === 'administrador',
+        'compra descuenta stock y conserva el rol administrativo'
+    );
+    $pagina = solicitar('/admin/usuarios', $cookies);
+    comprobar($pagina['status'] === 200, 'administrador mantiene acceso a su panel tras comprar');
+    $factura = solicitar('/admin/factura?id=' . $pedidoAdmin['id'], $cookies);
+    comprobar(
+        $factura['status'] === 200 &&
+            str_contains($factura['html'], 'MIL DOSCIENTOS CINCUENTA 50/100 BOLIVIANOS'),
+        'factura admite importes mayores de mil con centavos exactos'
+    );
+    comprobar(
+        str_contains($factura['html'], 'css/factura.css') &&
+            str_contains($factura['html'], 'data-print') &&
+            !str_contains($factura['html'], 'onclick=') &&
+            !str_contains($factura['html'], '<style>'),
+        'factura usa estilos y botón compatibles con CSP'
+    );
+    comprobar(
+        strpos($factura['html'], 'class="factura-datos"') <
+            strpos($factura['html'], 'class="factura-detalle"'),
+        'datos del comprador aparecen antes del detalle'
+    );
+    comprobar(
+        str_contains($factura['html'], 'FACTURA DE DEMOSTRACIÓN') &&
+            !str_contains($factura['html'], 'CUF:') &&
+            !str_contains($factura['html'], '72320623018'),
+        'documento no inventa NIT ni códigos fiscales'
+    );
+    $css = solicitar('/css/factura.css?v=1', $visitante);
+    comprobar(
+        $css['status'] === 200 && str_contains($css['html'], '@media print'),
+        'hoja de impresión responde por HTTP'
+    );
+    $invalida = solicitar('/admin/factura?id=' . $pedidoAdmin['id'] . '&nit[]=123', $cookies);
+    comprobar(
+        $invalida['status'] === 422,
+        'datos de factura malformados se rechazan sin error 500'
+    );
+    $ajena = solicitar('/factura?id=' . $pedidoAdmin['id'], $cliente);
+    comprobar($ajena['status'] === 403, 'cliente no accede a la factura de otra cuenta');
+
+    $pagina = solicitar('/carrito', $cliente);
+    preg_match('/name="token"\s+value="([^"]+)"/', $pagina['html'], $pedidoToken);
+    solicitar('/carrito/confirmar', $cliente, [
+        'csrf' => token($pagina),
+        'token' => $pedidoToken[1],
+        'items' => '{"1":1}'
+    ]);
+    $pedidoCliente = $lector
+        ->query(
+            'SELECT * FROM pedidos WHERE usuario_id=' . (int) $u['id'] . ' ORDER BY id DESC LIMIT 1'
+        )
+        ->fetch();
+    $factura = solicitar(
+        '/factura?id=' . $pedidoCliente['id'] . '&nit=12345&razon_social=Maria%20Perez',
+        $cliente
+    );
+    comprobar(
+        $factura['status'] === 200 &&
+            str_contains($factura['html'], 'action="/factura"') &&
+            str_contains($factura['html'], 'Maria Perez') &&
+            !str_contains($factura['html'], 'action="/admin/factura"'),
+        'cliente actualiza sus datos de impresión en la ruta correcta'
+    );
+    $personal = [];
+    $pagina = solicitar('/acceder', $personal);
+    solicitar('/acceder', $personal, [
+        'csrf' => token($pagina),
+        'usuario' => 'empleado',
+        'clave' => 'CafeBar2026!'
+    ]);
+    comprobar(
+        solicitar('/carrito', $personal)['status'] === 403,
+        'empleado mantiene la restricción de compra'
+    );
+
     echo 'Base aislada conservada: ' . $nombreDb . PHP_EOL;
 } finally {
     proc_terminate($proceso);
@@ -17981,5 +18205,597 @@ trim_trailing_whitespace = true
 
 [*.md]
 trim_trailing_whitespace = false
+
+````
+
+## 111. app/controllers/ConsultaController.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+final class ConsultaController
+{
+    public function mias(): void
+    {
+        $usuario = AuthMiddleware::exigir();
+
+        vista('publico/mensajes', [
+            'mensajes' => (new MensajeModel())->mios((int) $usuario['id']),
+            'privada' => false
+        ]);
+    }
+
+    public function privada(): void
+    {
+        try {
+            $token = Validador::texto($_GET, 'token', 64, 64);
+            $mensaje = (new MensajeModel())->porToken($token);
+        } catch (DomainException $error) {
+            http_response_code(404);
+            throw $error;
+        }
+
+        vista('publico/mensajes', ['mensajes' => [$mensaje], 'privada' => true]);
+    }
+}
+
+````
+
+## 112. app/helpers/ImporteLiteral.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+final class ImporteLiteral
+{
+    public static function bolivianos(string $importe): string
+    {
+        $total = centavos($importe);
+        $entero = intdiv($total, 100);
+        $decimal = str_pad((string) ($total % 100), 2, '0', STR_PAD_LEFT);
+
+        return self::entero($entero) . ' ' . $decimal . '/100 BOLIVIANOS';
+    }
+
+    private static function entero(int $numero): string
+    {
+        $primeros = [
+            'CERO',
+            'UN',
+            'DOS',
+            'TRES',
+            'CUATRO',
+            'CINCO',
+            'SEIS',
+            'SIETE',
+            'OCHO',
+            'NUEVE',
+            'DIEZ',
+            'ONCE',
+            'DOCE',
+            'TRECE',
+            'CATORCE',
+            'QUINCE',
+            'DIECISÉIS',
+            'DIECISIETE',
+            'DIECIOCHO',
+            'DIECINUEVE',
+            'VEINTE',
+            'VEINTIÚN',
+            'VEINTIDÓS',
+            'VEINTITRÉS',
+            'VEINTICUATRO',
+            'VEINTICINCO',
+            'VEINTISÉIS',
+            'VEINTISIETE',
+            'VEINTIOCHO',
+            'VEINTINUEVE'
+        ];
+
+        if ($numero < 30) {
+            return $primeros[$numero];
+        }
+
+        if ($numero < 100) {
+            $decenas = [
+                '',
+                '',
+                '',
+                'TREINTA',
+                'CUARENTA',
+                'CINCUENTA',
+                'SESENTA',
+                'SETENTA',
+                'OCHENTA',
+                'NOVENTA'
+            ];
+            $texto = $decenas[intdiv($numero, 10)];
+            $resto = $numero % 10;
+
+            return $resto === 0 ? $texto : $texto . ' Y ' . self::entero($resto);
+        }
+
+        if ($numero === 100) {
+            return 'CIEN';
+        }
+
+        if ($numero < 1000) {
+            $centenas = [
+                '',
+                'CIENTO',
+                'DOSCIENTOS',
+                'TRESCIENTOS',
+                'CUATROCIENTOS',
+                'QUINIENTOS',
+                'SEISCIENTOS',
+                'SETECIENTOS',
+                'OCHOCIENTOS',
+                'NOVECIENTOS'
+            ];
+            $texto = $centenas[intdiv($numero, 100)];
+            $resto = $numero % 100;
+
+            return $resto === 0 ? $texto : $texto . ' ' . self::entero($resto);
+        }
+
+        if ($numero < 1000000) {
+            $miles = intdiv($numero, 1000);
+            $texto = $miles === 1 ? 'MIL' : self::entero($miles) . ' MIL';
+            $resto = $numero % 1000;
+
+            return $resto === 0 ? $texto : $texto . ' ' . self::entero($resto);
+        }
+
+        $millones = intdiv($numero, 1000000);
+        $texto = $millones === 1 ? 'UN MILLÓN' : self::entero($millones) . ' MILLONES';
+        $resto = $numero % 1000000;
+
+        return $resto === 0 ? $texto : $texto . ' ' . self::entero($resto);
+    }
+}
+
+````
+
+## 113. app/views/publico/mensajes.php
+````php
+<section class="pagina-hero compacta">
+    <p class="etiqueta">CONVERSEMOS</p>
+    <h1><?= $privada ? 'Tu consulta.' : 'Mis mensajes.' ?></h1>
+    <p>Lee aquí la respuesta de nuestro equipo.</p>
+    <?php if ($privada): ?>
+        <p class="muted">Guarda este enlace privado para volver a consultar. Cualquier persona que lo tenga podrá leer esta consulta.</p>
+        <button type="button" class="secundario" data-copy-link>Copiar enlace privado</button>
+    <?php endif; ?>
+</section>
+
+<div class="mensajes-grid">
+    <?php foreach ($mensajes as $mensaje): ?>
+        <article class="tarjeta">
+            <div class="titulo-seccion">
+                <h2><?= e($mensaje['asunto']) ?></h2>
+                <span class="estado <?= !empty($mensaje['respuesta']) ? 'entregado' : 'pendiente' ?>">
+                    <?= !empty($mensaje['respuesta']) ? 'Respondido' : 'Esperando respuesta' ?>
+                </span>
+            </div>
+            <p class="muted">Consulta #<?= e($mensaje['id']) ?> · <?= e(fechaBolivia($mensaje['fecha'])) ?></p>
+            <h3>Tu mensaje</h3>
+            <p class="texto-mensaje"><?= e($mensaje['contenido']) ?></p>
+
+            <?php if (!empty($mensaje['respuesta'])): ?>
+                <section class="respuesta-contacto">
+                    <h3>Respuesta de Coffe Music Bar</h3>
+                    <p class="texto-mensaje"><?= e($mensaje['respuesta']) ?></p>
+                    <p class="muted"><?= e(fechaBolivia($mensaje['respuesta_fecha'])) ?></p>
+                </section>
+            <?php else: ?>
+                <p class="muted">Te responderemos en este espacio. Vuelve a abrir esta página para ver las novedades.</p>
+            <?php endif; ?>
+        </article>
+    <?php endforeach; ?>
+</div>
+
+<?php if (!$mensajes): ?>
+    <p class="vacio">Todavía no has enviado consultas desde tu cuenta.</p>
+<?php endif; ?>
+
+<p><a class="texto-link" href="<?= e(url('contactos#mensaje')) ?>">Enviar una nueva consulta →</a></p>
+
+````
+
+## 114. database/actualizar-contactos.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+if (PHP_SAPI !== 'cli') {
+    exit(1);
+}
+
+require dirname(__DIR__) . '/app/helpers/Funciones.php';
+
+$configuracion = Config::db();
+$conexion = new PDO(
+    $configuracion['dsn'],
+    getenv('CAFEBAR_INSTALL_USER') ?: 'root',
+    getenv('CAFEBAR_INSTALL_PASSWORD') ?: '',
+    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+);
+
+$columnas = [
+    'usuario_id' => 'INT UNSIGNED NULL',
+    'token_hash' => 'CHAR(64) NULL',
+    'respuesta' => 'TEXT NULL',
+    'respondido_por' => 'INT UNSIGNED NULL',
+    'respuesta_fecha' => 'DATETIME NULL'
+];
+
+foreach ($columnas as $nombre => $definicion) {
+    $consulta = $conexion->prepare(
+        'SELECT COUNT(*) FROM information_schema.columns
+         WHERE table_schema=DATABASE() AND table_name=? AND column_name=?'
+    );
+    $consulta->execute(['mensajes_contacto', $nombre]);
+
+    if (!$consulta->fetchColumn()) {
+        $conexion->exec('ALTER TABLE mensajes_contacto ADD COLUMN ' . $nombre . ' ' . $definicion);
+    }
+}
+
+$indices = [
+    'contacto_token' => 'UNIQUE KEY contacto_token (token_hash)',
+    'contacto_usuario' => 'INDEX contacto_usuario (usuario_id)'
+];
+
+foreach ($indices as $nombre => $definicion) {
+    $consulta = $conexion->prepare(
+        'SELECT COUNT(*) FROM information_schema.statistics
+         WHERE table_schema=DATABASE() AND table_name=? AND index_name=?'
+    );
+    $consulta->execute(['mensajes_contacto', $nombre]);
+
+    if (!$consulta->fetchColumn()) {
+        $conexion->exec('ALTER TABLE mensajes_contacto ADD ' . $definicion);
+    }
+}
+
+$relaciones = [
+    'contacto_propietario' => 'FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL',
+    'contacto_responsable' =>
+        'FOREIGN KEY (respondido_por) REFERENCES usuarios(id) ON DELETE SET NULL'
+];
+
+foreach ($relaciones as $nombre => $definicion) {
+    $consulta = $conexion->prepare(
+        'SELECT COUNT(*) FROM information_schema.table_constraints
+         WHERE constraint_schema=DATABASE() AND table_name=? AND constraint_name=?'
+    );
+    $consulta->execute(['mensajes_contacto', $nombre]);
+
+    if (!$consulta->fetchColumn()) {
+        $conexion->exec(
+            'ALTER TABLE mensajes_contacto ADD CONSTRAINT ' . $nombre . ' ' . $definicion
+        );
+    }
+}
+
+echo "Mensajes actualizados. Consultas existentes conservadas.\n";
+
+````
+
+## 115. public/css/factura.css
+````css
+.factura-botonera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.factura-botonera h1 {
+    margin: 0.8rem 0 0.4rem;
+    font-size: clamp(1.8rem, 5vw, 2.5rem);
+}
+
+.factura-edicion {
+    margin-bottom: 1.5rem;
+}
+
+.factura-edicion h2 {
+    font-size: 1.4rem;
+}
+
+.factura-formulario {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+.factura-documento {
+    max-width: 900px;
+    margin-inline: auto;
+    padding: 2rem;
+    border-radius: 12px;
+    background: #fff;
+    color: #172438;
+    border: 1px solid #d8dce1;
+    box-shadow: 0 12px 30px #0002;
+    overflow-wrap: anywhere;
+}
+
+.factura-documento p {
+    margin: 0.4rem 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.factura-encabezado {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 2px solid #172438;
+}
+
+.factura-marca {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.factura-marca h2 {
+    color: inherit;
+    font-size: 1.35rem;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.factura-referencia {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.9rem;
+    border: 1px solid #b7bec8;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+.factura-datos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+    font-size: 0.85rem;
+}
+
+.factura-datos dt {
+    font-weight: 800;
+    margin-bottom: 0.3rem;
+}
+
+.factura-datos dd {
+    margin: 0;
+}
+
+.factura-detalle {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.factura-tabla {
+    width: 100%;
+    min-width: 450px;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: inherit;
+}
+
+.factura-tabla th,
+.factura-tabla td {
+    padding: 0.7rem 0.5rem;
+    border-bottom: 1px solid #d8dce1;
+    color: inherit;
+    text-align: left;
+}
+
+.factura-tabla th {
+    background: #f4f0e9;
+}
+
+.factura-tabla th:nth-last-child(-n + 2),
+.factura-tabla td:nth-last-child(-n + 2) {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.factura-totales {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, auto);
+    gap: 1.5rem;
+    align-items: start;
+    margin-top: 1.5rem;
+}
+
+.factura-totales .factura-total {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 1.1rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid #172438;
+}
+
+.factura-aviso {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #b7bec8;
+}
+
+.factura-aviso p {
+    font-size: 0.75rem;
+}
+
+@media (max-width: 700px) {
+    .factura-formulario,
+    .factura-encabezado,
+    .factura-datos,
+    .factura-totales {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .factura-documento {
+        padding: 1.1rem;
+    }
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 12mm;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    body::before,
+    body::after,
+    .sidebar,
+    .cabecera,
+    .pie,
+    .panel-top,
+    .no-print,
+    .ondas-fondo,
+    .theme-rotator,
+    .anuncio,
+    .aviso,
+    .whatsapp-flotante,
+    .saltar,
+    #toast {
+        display: none !important;
+    }
+
+    .panel-body,
+    .panel-main,
+    .contenedor,
+    .principal {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    .factura-documento {
+        max-width: none;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .factura-datos {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .factura-encabezado,
+    .factura-totales,
+    .factura-tabla tr {
+        break-inside: avoid;
+    }
+
+    .factura-tabla thead {
+        display: table-header-group;
+    }
+
+    .factura-detalle {
+        overflow: visible;
+    }
+}
+
+````
+
+## 116. tests/importe-literal.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+require dirname(__DIR__) . '/app/helpers/Funciones.php';
+
+$casos = [
+    '0.00' => 'CERO 00/100 BOLIVIANOS',
+    '21.50' => 'VEINTIÚN 50/100 BOLIVIANOS',
+    '100.00' => 'CIEN 00/100 BOLIVIANOS',
+    '101.01' => 'CIENTO UN 01/100 BOLIVIANOS',
+    '999.99' => 'NOVECIENTOS NOVENTA Y NUEVE 99/100 BOLIVIANOS',
+    '1000.00' => 'MIL 00/100 BOLIVIANOS',
+    '1250.50' => 'MIL DOSCIENTOS CINCUENTA 50/100 BOLIVIANOS',
+    '1000000.00' => 'UN MILLÓN 00/100 BOLIVIANOS'
+];
+
+foreach ($casos as $importe => $esperado) {
+    if (ImporteLiteral::bolivianos($importe) !== $esperado) {
+        throw new RuntimeException('Importe literal incorrecto: ' . $importe);
+    }
+    echo 'OK importe literal ' . $importe . PHP_EOL;
+}
+
+````
+
+## 117. tests/impresion.js
+````javascript
+'use strict';
+
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+
+let imprimir;
+let impresiones = 0;
+const boton = {
+    addEventListener(evento, accion) {
+        assert.equal(evento, 'click');
+        imprimir = accion;
+    }
+};
+
+const documento = {
+    documentElement: { dataset: { theme: 'dark' } },
+    querySelectorAll(selector) {
+        return selector === '[data-print]' ? [boton] : [];
+    },
+    querySelector() {
+        return null;
+    }
+};
+
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8'), {
+    document: documento,
+    window: {
+        print() {
+            impresiones++;
+        }
+    },
+    localStorage: {
+        getItem() {
+            return null;
+        },
+        setItem() {}
+    },
+    TextEncoder
+});
+
+assert.equal(typeof imprimir, 'function');
+imprimir();
+assert.equal(impresiones, 1);
+console.log('OK botón data-print abre la impresión mediante JavaScript externo');
 
 ````

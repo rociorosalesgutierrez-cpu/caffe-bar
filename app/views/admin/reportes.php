@@ -159,10 +159,9 @@
 >
     <div class="titulo-seccion">
         <div>
-            <p class="etiqueta">DOCUMENTOS FISCALES</p>
+            <p class="etiqueta">DOCUMENTOS DEL PEDIDO</p>
             <h2>Historial de Pedidos y Emisión de Facturas</h2>
-            <p class="muted">Haz clic en "Emitir / Ver Factura" para generar el documento tributario
-                imprimible.</p>
+            <p class="muted">Abre la vista de demostración para revisar los datos e imprimir el pedido.</p>
         </div>
     </div>
     <?php if ($pedidos): ?>
@@ -182,7 +181,7 @@
                     <?php foreach ($pedidos as $p): ?>
                         <tr>
                             <td>#<?= e((string) $p['id']) ?></td>
-                            <td><?= e(date('d/m/Y H:i', strtotime($p['fecha']))) ?></td>
+                            <td><?= e(fechaBolivia($p['fecha'])) ?></td>
                             <td>
                                 <strong><?= e($p['cliente']) ?></strong>
                                 <small><?= e($p['correo']) ?></small>
@@ -196,8 +195,8 @@
                                     class="boton pequeno"
                                     href="<?= e(url('admin/factura?id=' . $p['id'])) ?>"
                                     target="_blank"
-                                    title="Emitir o imprimir factura fiscal de este pedido"
-                                > Emitir Factura 📄 </a>
+                                    title="Ver e imprimir la factura de demostración del pedido"
+                                > Ver / imprimir factura 📄 </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>

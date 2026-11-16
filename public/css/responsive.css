@@ -17,6 +17,16 @@
 fieldset {
     min-width: 0;
 }
+
+.respuesta-contacto {
+    border-top: 1px solid var(--line);
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+}
+
+.mensajes-grid article > form {
+    margin-top: 1.25rem;
+}
 .tabla-contenedor {
     max-width: 100%;
 }

@@ -4,6 +4,15 @@ declare(strict_types = 1);
 
 final class AuthMiddleware
 {
+    public const ROLES_COMPRA = ['cliente', 'administrador'];
+
+    public static function puedeComprar(?array $usuario): bool
+    {
+        return $usuario !== null &&
+            !empty($usuario['estado']) &&
+            in_array($usuario['rol'], self::ROLES_COMPRA, true);
+    }
+
     public static function usuario(): ?array
     {
         if (empty($_SESSION['uid'])) {

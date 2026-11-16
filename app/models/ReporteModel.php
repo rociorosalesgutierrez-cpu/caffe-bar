@@ -105,15 +105,9 @@ final class ReporteModel
         $sqlDetalles = 'SELECT * FROM detalle_pedido WHERE pedido_id = ? ORDER BY id ASC';
         $pedido['items'] = Conexion::consulta($sqlDetalles, [$pedidoId])->fetchAll();
 
-        // Generar código de autorización y control fiscal de demostración
+        // Referencia de demostración. La aplicación no ha emitido un documento fiscal.
         $pedido['nro_factura'] = str_pad((string) $pedido['id'], 6, '0', STR_PAD_LEFT);
-        $pedido['autorizacion'] = strtoupper(
-            substr(hash('sha256', 'FACTURA_' . $pedido['id'] . '_' . $pedido['fecha']), 0, 16)
-        );
-        $pedido['cuf'] = strtoupper(
-            substr(hash('sha256', 'CUF_' . $pedido['id'] . '_' . $pedido['total']), 0, 32)
-        );
-        $pedido['control'] = strtoupper(substr(hash('sha256', 'CTRL_' . $pedido['id']), 0, 8));
+        $pedido['es_demostracion'] = true;
 
         return $pedido;
     }

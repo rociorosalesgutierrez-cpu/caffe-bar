@@ -2,6 +2,17 @@
 document.querySelectorAll('[data-print]').forEach((button) => {
     button.addEventListener('click', () => window.print());
 });
+
+document.querySelectorAll('[data-copy-link]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(location.href);
+            button.textContent = 'Enlace copiado';
+        } catch {
+            window.prompt('Copia este enlace privado:', location.href);
+        }
+    });
+});
 (() => {
     const buttons = document.querySelectorAll('.theme-rotator');
     function applyTheme(theme) {

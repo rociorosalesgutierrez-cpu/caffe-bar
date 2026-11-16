@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 return [
     'nombre' => 'caffe music bar',
+    'nit' => '',
     'ciudad' => 'Oruro, Bolivia',
     'direccion' => 'Instituto Técnico Jesús María, calle Oblitas Nº 364 entre Pagador y Potosí',
     'telefono' => '+591 72320623',

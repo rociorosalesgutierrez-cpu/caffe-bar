@@ -27,10 +27,10 @@ Sistema web MVC para cafetería, bar y restaurante desarrollado con arquitectura
    - Ranking de productos más vendidos con gráfico de barras porcentuales.
    - Agrupación de ventas diarias y exportación directa a **CSV / Excel**.
 
-5. **Emisión de Facturas Fiscales Bolivianas Imprimibles:**
-   - Generación de factura legal con Número correlativo, NIT emisor (72320623018), Código de Autorización y Código Único de Facturación (CUF).
+5. **Vista de Factura de Demostración Imprimible:**
+   - Datos reales del pedido, referencia, comprador y fechas de Bolivia. El documento está identificado como demostración; no emite facturas fiscales ni inventa NIT, CUF, autorización o QR.
    - Conversión automática del importe total a palabras (numeral a literal en Bolivianos).
-   - Edición en caliente del NIT/CI y Razón Social del cliente antes de imprimir.
+   - Edición del NIT/CI y razón social del comprador para esa impresión, desde la ruta autorizada de cada cuenta.
    - Formato listo para impresión física con hoja de estilos `@media print`.
 
 6. **Canales de Contacto Directo:**
@@ -77,9 +77,19 @@ Sistema web MVC para cafetería, bar y restaurante desarrollado con arquitectura
    ```
    - O mediante el servidor interno de PHP:
    ```bash
-   php -S 127.0.0.1:8080 -t public public/router.php
+   php -S 0.0.0.0:8080 -t public public/router.php
    ```
    - Abrir en el navegador: [http://127.0.0.1:8080/](http://127.0.0.1:8080/)
+
+### Abrir desde un teléfono u otro equipo
+
+`./iniciar.ps1` escucha en la red local y muestra el enlace con la IP del equipo. Ambos dispositivos deben conectarse a la misma red Wi-Fi o LAN. En el otro dispositivo abre `http://IP_DEL_EQUIPO:8080/`; `127.0.0.1` siempre se refiere al dispositivo que abre el enlace. Mantén encendido el equipo que ejecuta PHP. La IP puede cambiar al reconectar el Wi-Fi.
+
+Para limitar el servidor al equipo actual, usa `./iniciar.ps1 -Escuchar 127.0.0.1`. El puerto se puede cambiar con `-Puerto 8081`. Si el firewall bloquea el acceso, permite PHP para la red local; no es necesario desactivar el firewall. Este servidor de desarrollo no publica el proyecto en Internet.
+
+### Actualizar una instalación existente
+
+Después de actualizar el código, ejecuta `php database/actualizar-contactos.php` con las credenciales de mantenimiento en `CAFEBAR_INSTALL_USER` y `CAFEBAR_INSTALL_PASSWORD`, si son necesarias. Añade las columnas de respuesta, propietario y seguimiento privado sin eliminar consultas anteriores. La cuenta web conserva sus permisos limitados de lectura y escritura.
 
 ---
 
@@ -110,7 +120,13 @@ El administrador registra usuarios desde **Mi panel → Usuarios**. El sistema c
 
 Las contraseñas nuevas requieren al menos **8 caracteres**, con un máximo de 72 bytes para evitar el truncamiento de bcrypt. Esta regla se aplica al registro público, al alta administrativa y al cambio de contraseña del perfil. Cambiar una contraseña requiere la actual; las contraseñas existentes conservan su acceso.
 
-El panel **Mensajes de contacto** recibe las consultas del formulario **Contactos → Escríbenos algo** y las guarda en **cafebar_mvc → mensajes_contacto**. Los enlaces a WhatsApp abren un canal independiente. Marcar un mensaje como leído o respondido actualiza su estado; no envía correo ni mensajes de WhatsApp.
+El panel **Mensajes de contacto** recibe las consultas de **Contactos → Escríbenos algo** y las guarda en **cafebar_mvc → mensajes_contacto**. El administrador escribe en **Respuesta al cliente → Guardar respuesta**; el estado pasa a respondido y se guarda la fecha. Cambiar solo la etiqueta a respondido se rechaza si no hay una respuesta escrita.
+
+Los usuarios con sesión ven sus consultas en **Mis mensajes**. Los visitantes reciben un enlace privado al enviar el formulario: deben guardarlo para leer la respuesta. Ese enlace da acceso a la consulta y se almacena como hash. Las consultas anteriores sin propietario ni enlace privado siguen en el panel; el administrador puede abrir el correo del remitente para responderlas manualmente. La aplicación no envía correo automáticamente ni integra las conversaciones de WhatsApp.
+
+Las cuentas **cliente y administrador** pueden usar la carta, su carrito y **Mis pedidos**. El administrador conserva su rol y panel; sus compras se vinculan a su propio ID y descuentan stock mediante la misma transacción. El personal empleado mantiene el acceso operativo y no compra desde su cuenta.
+
+**Facturas:** la vista usa los datos del pedido, estilos externos compatibles con CSP y el botón **Imprimir / guardar PDF**. Los datos del comprador aparecen antes del detalle. El importe en letras admite miles y millones. El NIT del emisor solo se muestra si se configura en `datos-negocio.php` o `COFFE_NIT`. La emisión fiscal real requiere la integración y configuración tributaria del negocio, que no forman parte de esta demostración.
 
 Para comprobar validaciones, altas administrativas, registro público, cambio de contraseña y recepción de contactos por HTTP, ejecuta `php tests/usuarios.php`. La prueba crea y conserva una base aislada `cafebar_users_*`, comprueba los registros desde otra conexión MySQL y detiene su servidor temporal al terminar. Usa las variables `CAFEBAR_TEST_DSN`, `CAFEBAR_TEST_USER` y `CAFEBAR_TEST_PASSWORD` si la cuenta local de pruebas requiere configuración.
 

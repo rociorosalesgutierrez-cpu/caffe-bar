@@ -12,7 +12,7 @@
             class="boton"
             href="<?= e(url(($cliente ? 'factura' : 'admin/factura') . '?id=' . $pedido['id'])) ?>"
             target="_blank"
-        > Emitir Factura 📄 </a>
+        > Ver / imprimir factura 📄 </a>
     </div>
 </div>
 <section class="tarjeta">
@@ -30,7 +30,7 @@
                 class="muted"
                 style="margin: 0;"
             >Fecha de emisión:</p>
-            <strong><?= e(date('d/m/Y H:i', strtotime($pedido['fecha']))) ?></strong>
+            <strong><?= e(fechaBolivia($pedido['fecha'])) ?></strong>
         </div>
     </div>
     <div class="tabla-contenedor">
