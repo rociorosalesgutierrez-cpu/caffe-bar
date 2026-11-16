@@ -1,1 +1,109 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450"><defs><linearGradient id="b" x2="1" y2="1"><stop stop-color="#f5ead6"/><stop offset="1" stop-color="#e6c691"/></linearGradient><linearGradient id="j" x2=".5" y2="1"><stop stop-color="#edba48"/><stop offset="1" stop-color="#df802c"/></linearGradient></defs><path fill="url(#b)" d="M0 0h600v450H0z"/><ellipse cx="300" cy="349" rx="120" ry="20" fill="#c49658" opacity=".2"/><path d="m240 126 15 214q45 24 90 0l15-214z" fill="#fff9e8" opacity=".7"/><path d="m246 156 13 177q41 20 82 0l13-177z" fill="url(#j)"/><ellipse cx="300" cy="155" rx="54" ry="13" fill="#ffcc64"/><path d="m310 266 18-182 45-24" fill="none" stroke="#7c946b" stroke-width="8"/><path d="m266 177 10 135" stroke="#ffe2a4" stroke-width="6" opacity=".7"/><circle cx="366" cy="147" r="36" fill="#e79729"/><circle cx="366" cy="147" r="30" fill="#ffdc8d"/><g stroke="#f1a64a" stroke-width="2"><path d="m366 117v60m-30-30h60m-51-21 42 42m0-42-42 42"/></g><ellipse cx="208" cy="327" rx="39" ry="33" fill="#e99c32"/><path d="M200 295q20-42 43-19-12 25-43 19" fill="#657c49"/><text x="300" y="413" text-anchor="middle" fill="#85613f" font-family="Georgia,serif" font-size="15" letter-spacing="5">CAFEBAR · FRESCURA NATURAL</text></svg>
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="600"
+    height="450"
+    viewBox="0 0 600 450"
+>
+    <defs>
+        <linearGradient
+            id="b"
+            x2="1"
+            y2="1"
+        >
+            <stop stop-color="#f5ead6" />
+            <stop
+                offset="1"
+                stop-color="#e6c691"
+            />
+        </linearGradient>
+        <linearGradient
+            id="j"
+            x2=".5"
+            y2="1"
+        >
+            <stop stop-color="#edba48" />
+            <stop
+                offset="1"
+                stop-color="#df802c"
+            />
+        </linearGradient>
+    </defs>
+    <path
+        fill="url(#b)"
+        d="M0 0h600v450H0z"
+    />
+    <ellipse
+        cx="300"
+        cy="349"
+        rx="120"
+        ry="20"
+        fill="#c49658"
+        opacity=".2"
+    />
+    <path
+        d="m240 126 15 214q45 24 90 0l15-214z"
+        fill="#fff9e8"
+        opacity=".7"
+    />
+    <path
+        d="m246 156 13 177q41 20 82 0l13-177z"
+        fill="url(#j)"
+    />
+    <ellipse
+        cx="300"
+        cy="155"
+        rx="54"
+        ry="13"
+        fill="#ffcc64"
+    />
+    <path
+        d="m310 266 18-182 45-24"
+        fill="none"
+        stroke="#7c946b"
+        stroke-width="8"
+    />
+    <path
+        d="m266 177 10 135"
+        stroke="#ffe2a4"
+        stroke-width="6"
+        opacity=".7"
+    />
+    <circle
+        cx="366"
+        cy="147"
+        r="36"
+        fill="#e79729"
+    />
+    <circle
+        cx="366"
+        cy="147"
+        r="30"
+        fill="#ffdc8d"
+    />
+    <g
+        stroke="#f1a64a"
+        stroke-width="2"
+    >
+        <path d="m366 117v60m-30-30h60m-51-21 42 42m0-42-42 42" />
+    </g>
+    <ellipse
+        cx="208"
+        cy="327"
+        rx="39"
+        ry="33"
+        fill="#e99c32"
+    />
+    <path
+        d="M200 295q20-42 43-19-12 25-43 19"
+        fill="#657c49"
+    />
+    <text
+        x="300"
+        y="413"
+        text-anchor="middle"
+        fill="#85613f"
+        font-family="Georgia,serif"
+        font-size="15"
+        letter-spacing="5"
+    >CAFEBAR · FRESCURA NATURAL</text>
+</svg>

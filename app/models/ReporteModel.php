@@ -1,5 +1,6 @@
 <?php
-declare(strict_types=1);
+
+declare(strict_types = 1);
 
 final class ReporteModel
 {
@@ -16,7 +17,7 @@ final class ReporteModel
         $where = implode(' AND ', $condiciones);
 
         // Resumen general
-        $sqlResumen = "SELECT 
+        $sqlResumen = "SELECT
             COUNT(p.id) as total_pedidos,
             COALESCE(SUM(CASE WHEN p.estado != 'cancelado' THEN p.total ELSE 0 END), 0) as total_ingresos,
             COUNT(CASE WHEN p.estado = 'entregado' THEN 1 END) as pedidos_entregados,
@@ -29,21 +30,25 @@ final class ReporteModel
             'total_ingresos' => '0.00',
             'pedidos_entregados' => 0,
             'pedidos_pendientes' => 0,
-            'pedidos_cancelados' => 0,
+            'pedidos_cancelados' => 0
         ];
 
         // Total de unidades vendidas
         $sqlUnidades = "SELECT COALESCE(SUM(dp.cantidad), 0) FROM detalle_pedido dp
             JOIN pedidos p ON p.id = dp.pedido_id
             WHERE $where AND p.estado != 'cancelado'";
-        $resumen['unidades_vendidas'] = (int)Conexion::consulta($sqlUnidades, $params)->fetchColumn();
+        $resumen['unidades_vendidas'] = (int) Conexion::consulta(
+            $sqlUnidades,
+            $params
+        )->fetchColumn();
 
-        $resumen['ticket_promedio'] = ($resumen['total_pedidos'] > 0)
-            ? (float)$resumen['total_ingresos'] / (int)$resumen['total_pedidos']
-            : 0;
+        $resumen['ticket_promedio'] =
+            $resumen['total_pedidos'] > 0
+                ? (float) $resumen['total_ingresos'] / (int) $resumen['total_pedidos']
+                : 0;
 
         // Ventas agrupadas por día
-        $sqlDias = "SELECT 
+        $sqlDias = "SELECT
             DATE(p.fecha) as dia,
             COUNT(p.id) as cantidad_pedidos,
             COALESCE(SUM(CASE WHEN p.estado != 'cancelado' THEN p.total ELSE 0 END), 0) as total_dia
@@ -54,7 +59,7 @@ final class ReporteModel
         $dias = Conexion::consulta($sqlDias, $params)->fetchAll();
 
         // Top 10 productos más vendidos
-        $sqlTop = "SELECT 
+        $sqlTop = "SELECT
             dp.nombre_producto,
             c.nombre as categoria,
             SUM(dp.cantidad) as unidades,
@@ -81,7 +86,7 @@ final class ReporteModel
             'resumen' => $resumen,
             'dias' => $dias,
             'top_productos' => $topProductos,
-            'pedidos' => $pedidos,
+            'pedidos' => $pedidos
         ];
     }
 
@@ -97,13 +102,17 @@ final class ReporteModel
             throw new DomainException('El pedido solicitado para facturación no existe.');
         }
 
-        $sqlDetalles = "SELECT * FROM detalle_pedido WHERE pedido_id = ? ORDER BY id ASC";
+        $sqlDetalles = 'SELECT * FROM detalle_pedido WHERE pedido_id = ? ORDER BY id ASC';
         $pedido['items'] = Conexion::consulta($sqlDetalles, [$pedidoId])->fetchAll();
 
         // Generar código de autorización y control fiscal de demostración
-        $pedido['nro_factura'] = str_pad((string)$pedido['id'], 6, '0', STR_PAD_LEFT);
-        $pedido['autorizacion'] = strtoupper(substr(hash('sha256', 'FACTURA_' . $pedido['id'] . '_' . $pedido['fecha']), 0, 16));
-        $pedido['cuf'] = strtoupper(substr(hash('sha256', 'CUF_' . $pedido['id'] . '_' . $pedido['total']), 0, 32));
+        $pedido['nro_factura'] = str_pad((string) $pedido['id'], 6, '0', STR_PAD_LEFT);
+        $pedido['autorizacion'] = strtoupper(
+            substr(hash('sha256', 'FACTURA_' . $pedido['id'] . '_' . $pedido['fecha']), 0, 16)
+        );
+        $pedido['cuf'] = strtoupper(
+            substr(hash('sha256', 'CUF_' . $pedido['id'] . '_' . $pedido['total']), 0, 32)
+        );
         $pedido['control'] = strtoupper(substr(hash('sha256', 'CTRL_' . $pedido['id']), 0, 8));
 
         return $pedido;

@@ -1,1 +1,90 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450" viewBox="0 0 600 450"><defs><linearGradient id="b" x2="1" y2="1"><stop stop-color="#ece8d9"/><stop offset="1" stop-color="#cbbd9c"/></linearGradient></defs><path fill="url(#b)" d="M0 0h600v450H0z"/><ellipse cx="300" cy="325" rx="162" ry="43" fill="#fff9e9"/><path d="m183 273 193-59 54 76-205 41z" fill="#bf874a"/><path d="m184 259 190-54 51 64-205 47z" fill="#89a259"/><path d="m187 249 183-52 51 61-204 47z" fill="#ce6645"/><path d="m182 237 186-54 52 59-204 47z" fill="#f4d782"/><path d="m182 226 179-52 53 57-201 49z" fill="#e7c39a"/><path d="m178 214 161-89 80 91-204 48z" fill="#dca75b"/><path d="m193 215 144-76 62 70-184 42z" fill="#efc982"/><g stroke="#ba8444" stroke-width="3" opacity=".7"><path d="m246 191 47 42m-18-59 49 41m-20-59 51 43"/></g><path d="m337 151 20-76" stroke="#8c6440" stroke-width="3"/><circle cx="357" cy="74" r="7" fill="#b74b3f"/><path d="M426 302q27-43 51-8-18 22-51 8" fill="#6c894f"/><text x="300" y="413" text-anchor="middle" fill="#74603f" font-family="Georgia,serif" font-size="15" letter-spacing="5">CAFEBAR · SABOR PARA COMPARTIR</text></svg>
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="600"
+    height="450"
+    viewBox="0 0 600 450"
+>
+    <defs>
+        <linearGradient
+            id="b"
+            x2="1"
+            y2="1"
+        >
+            <stop stop-color="#ece8d9" />
+            <stop
+                offset="1"
+                stop-color="#cbbd9c"
+            />
+        </linearGradient>
+    </defs>
+    <path
+        fill="url(#b)"
+        d="M0 0h600v450H0z"
+    />
+    <ellipse
+        cx="300"
+        cy="325"
+        rx="162"
+        ry="43"
+        fill="#fff9e9"
+    />
+    <path
+        d="m183 273 193-59 54 76-205 41z"
+        fill="#bf874a"
+    />
+    <path
+        d="m184 259 190-54 51 64-205 47z"
+        fill="#89a259"
+    />
+    <path
+        d="m187 249 183-52 51 61-204 47z"
+        fill="#ce6645"
+    />
+    <path
+        d="m182 237 186-54 52 59-204 47z"
+        fill="#f4d782"
+    />
+    <path
+        d="m182 226 179-52 53 57-201 49z"
+        fill="#e7c39a"
+    />
+    <path
+        d="m178 214 161-89 80 91-204 48z"
+        fill="#dca75b"
+    />
+    <path
+        d="m193 215 144-76 62 70-184 42z"
+        fill="#efc982"
+    />
+    <g
+        stroke="#ba8444"
+        stroke-width="3"
+        opacity=".7"
+    >
+        <path d="m246 191 47 42m-18-59 49 41m-20-59 51 43" />
+    </g>
+    <path
+        d="m337 151 20-76"
+        stroke="#8c6440"
+        stroke-width="3"
+    />
+    <circle
+        cx="357"
+        cy="74"
+        r="7"
+        fill="#b74b3f"
+    />
+    <path
+        d="M426 302q27-43 51-8-18 22-51 8"
+        fill="#6c894f"
+    />
+    <text
+        x="300"
+        y="413"
+        text-anchor="middle"
+        fill="#74603f"
+        font-family="Georgia,serif"
+        font-size="15"
+        letter-spacing="5"
+    >CAFEBAR · SABOR PARA COMPARTIR</text>
+</svg>

@@ -118,6 +118,10 @@ Para comprobar validaciones, altas administrativas, registro público, cambio de
 
 ## 📁 Estructura del Proyecto
 
+El código utiliza indentación de cuatro espacios, instrucciones separadas y bloques multilínea. Los nombres de variables describen los datos que contienen. Las vistas conservan sus clases y contenido; las hojas CSS mantienen el diseño. El archivo `.editorconfig` ayuda a conservar este formato en el editor.
+
+Para actualizar la recopilación de código sin crear el ZIP, ejecuta `./generar-entrega.ps1 -SoloCodigo`.
+
 ```text
 ├── app/
 │   ├── config/          # Conexión PDO, datos del negocio y configuración

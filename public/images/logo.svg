@@ -1,9 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <!-- Fondo marrón oscuro con esquinas suaves M3 -->
-  <rect width="400" height="400" rx="60" fill="#221916" />
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 400 400"
+    width="400"
+    height="400"
+>
+    <!-- Fondo marrón oscuro con esquinas suaves M3 -->
+    <rect
+        width="400"
+        height="400"
+        rx="60"
+        fill="#221916"
+    />
 
-  <!-- Silueta del oso en tono crema -->
-  <path fill="#F7ECCE" d="
+    <!-- Silueta del oso en tono crema -->
+    <path
+        fill="#F7ECCE"
+        d="
     M 164 114
     C 155 103, 138 113, 146 128
     C 138 148, 122 225, 118 258
@@ -17,15 +29,31 @@
     C 262 113, 245 103, 236 114
     C 222 106, 178 106, 164 114
     Z
-  " />
+  "
+    />
 
-  <!-- Ojos y nariz del oso (espacio negativo) -->
-  <circle cx="177" cy="143" r="3.8" fill="#221916" />
-  <circle cx="223" cy="143" r="3.8" fill="#221916" />
-  <path fill="#221916" d="M 193 142 L 207 142 C 207 147, 202 151, 200 151 C 198 151, 193 147, 193 142 Z" />
+    <!-- Ojos y nariz del oso (espacio negativo) -->
+    <circle
+        cx="177"
+        cy="143"
+        r="3.8"
+        fill="#221916"
+    />
+    <circle
+        cx="223"
+        cy="143"
+        r="3.8"
+        fill="#221916"
+    />
+    <path
+        fill="#221916"
+        d="M 193 142 L 207 142 C 207 147, 202 151, 200 151 C 198 151, 193 147, 193 142 Z"
+    />
 
-  <!-- Taza y espacio negativo inferior entre las patas -->
-  <path fill="#221916" d="
+    <!-- Taza y espacio negativo inferior entre las patas -->
+    <path
+        fill="#221916"
+        d="
     M 171 215
     C 171 206, 229 206, 229 215
     C 229 229, 220 238, 211 241
@@ -34,14 +62,27 @@
     C 187 276, 193 254, 189 241
     C 180 238, 171 229, 171 215
     Z
-  " />
+  "
+    />
 
-  <!-- Asa de la taza -->
-  <path fill="none" stroke="#221916" stroke-width="4.5" stroke-linecap="round" d="
+    <!-- Asa de la taza -->
+    <path
+        fill="none"
+        stroke="#221916"
+        stroke-width="4.5"
+        stroke-linecap="round"
+        d="
     M 172 217
     C 159 217, 159 231, 173 231
-  " />
+  "
+    />
 
-  <!-- Detalle de crema/café dentro de la taza -->
-  <ellipse cx="200" cy="215" rx="22" ry="3.2" fill="#F7ECCE" />
+    <!-- Detalle de crema/café dentro de la taza -->
+    <ellipse
+        cx="200"
+        cy="215"
+        rx="22"
+        ry="3.2"
+        fill="#F7ECCE"
+    />
 </svg>

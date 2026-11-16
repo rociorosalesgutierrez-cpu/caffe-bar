@@ -1,5 +1,13 @@
 # Verificación realizada
 
+## Código legible e indentación multilínea
+
+Se reorganizaron los 98 archivos de código PHP, JavaScript, CSS, SQL, PowerShell y SVG que forman la aplicación y sus pruebas. Se conservaron las modificaciones previas de la vista de categorías. Se añadieron nombres de variables descriptivos, bloques explícitos y separación de instrucciones, junto con `.editorconfig` para mantener cuatro espacios de indentación.
+
+La comparación de 38 páginas renderizadas antes y después conserva la estructura HTML, los textos y los atributos, excluyendo los tokens de sesión. Las hojas CSS conservan sus reglas; las fotografías y fuentes no se modificaron. Esta comparación no equivale a una inspección visual en un navegador.
+
+Pasaron las pruebas de usuarios por HTTP en una base aislada, integración de pedidos y permisos, concurrencia de stock, música y reportes, además de las comprobaciones de sintaxis y contraste. Las expresiones de las pruebas aceptan espacios y saltos de línea entre atributos HTML.
+
 ## Actualización de música, ubicación y modo claro
 
 - Jaqueline: creación con hash y autenticación correcta por modelo y HTTP como administradora.

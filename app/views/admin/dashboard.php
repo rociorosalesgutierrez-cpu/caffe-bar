@@ -1,3 +1,46 @@
-<div class="titulo-seccion"><div><p class="etiqueta">EL PULSO DE TU CAFETERÍA</p><h1>Hola, <?= e(explode(' ',$actual['nombre'])[0]) ?>.</h1><p class="muted">Todo listo para un nuevo buen momento.</p></div><a class="boton" href="<?= e(url('admin/pedidos')) ?>">Ver pedidos →</a></div>
-<div class="indicadores" data-stats-url="<?= e(url('admin/indicadores')) ?>"><?php foreach($indicadores as $k=>$v): ?><article class="indicador"><p><?= e(ucfirst($k)) ?></p><strong data-stat="<?= e($k) ?>"><?= e($v) ?></strong><small>Registros actuales</small></article><?php endforeach ?></div><p id="stats-status" class="muted" role="status">Los indicadores se actualizan cada 10 segundos.</p>
-<div class="dos-columnas seccion"><section class="tarjeta"><p class="etiqueta">OPERACIÓN DIARIA</p><h2>De la carta a la mesa</h2><p>Revisa existencias, consulta los pedidos entrantes y acompaña su preparación hasta la entrega.</p><a class="texto-link" href="<?= e(url('admin/productos')) ?>">Gestionar productos →</a></section><section class="tarjeta"><p class="etiqueta">UN FLUJO CLARO</p><h2>Pendiente → Preparando → Entregado</h2><p>La cancelación devuelve el stock. Los pedidos entregados y cancelados conservan su estado final.</p><a class="texto-link" href="<?= e(url('perfil')) ?>">Actualizar mi perfil →</a></section></div>
+<div class="titulo-seccion">
+    <div>
+        <p class="etiqueta">EL PULSO DE TU CAFETERÍA</p>
+        <h1>Hola, <?= e(explode(' ', $actual['nombre'])[0]) ?>.</h1>
+        <p class="muted">Todo listo para un nuevo buen momento.</p>
+    </div><a
+        class="boton"
+        href="<?= e(url('admin/pedidos')) ?>"
+    >Ver pedidos →</a>
+</div>
+<div
+    class="indicadores"
+    data-stats-url="<?= e(url('admin/indicadores')) ?>"
+>
+    <?php foreach ($indicadores as $k => $v): ?>
+        <article class="indicador">
+            <p><?= e(ucfirst($k)) ?></p><strong data-stat="<?= e($k) ?>"><?= e($v) ?></strong><small>Registros
+                actuales</small>
+        </article>
+    <?php endforeach; ?>
+</div>
+<p
+    id="stats-status"
+    class="muted"
+    role="status"
+>Los indicadores se actualizan cada 10 segundos.</p>
+<div class="dos-columnas seccion">
+    <section class="tarjeta">
+        <p class="etiqueta">OPERACIÓN DIARIA</p>
+        <h2>De la carta a la mesa</h2>
+        <p>Revisa existencias, consulta los pedidos entrantes y acompaña su preparación hasta la
+            entrega.</p><a
+            class="texto-link"
+            href="<?= e(url('admin/productos')) ?>"
+        >Gestionar productos →</a>
+    </section>
+    <section class="tarjeta">
+        <p class="etiqueta">UN FLUJO CLARO</p>
+        <h2>Pendiente → Preparando → Entregado</h2>
+        <p>La cancelación devuelve el stock. Los pedidos entregados y cancelados conservan su estado
+            final.</p><a
+            class="texto-link"
+            href="<?= e(url('perfil')) ?>"
+        >Actualizar mi perfil →</a>
+    </section>
+</div>
