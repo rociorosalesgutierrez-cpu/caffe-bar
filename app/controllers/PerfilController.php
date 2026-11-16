@@ -14,7 +14,7 @@ final class PerfilController
 }
     public function guardar(): void {
         postAccion(function(): void {
-            $nueva=empty($_POST['nueva_clave'])?null:Validador::clave($_POST,'nueva_clave');
+            $nueva=($_POST['nueva_clave']??'')===''?null:Validador::clave($_POST,'nueva_clave');
             if($nueva!==null&&$nueva!==($_POST['confirmacion']??null))throw new DomainException('Las contraseñas nuevas no coinciden.');
             $actual=isset($_POST['clave_actual'])&&is_string($_POST['clave_actual'])?$_POST['clave_actual']:null;
             (new UsuarioModel())->perfil((int)$this->usuario['id'],Validador::persona($_POST),$actual,$nueva);

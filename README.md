@@ -104,6 +104,16 @@ La reparación necesita acceso de mantenimiento al MySQL local (por defecto, `ro
 | **Personal / Empleado** | `empleado` | `CafeBar2026!` |
 | **Cliente** | `cliente` | `CafeBar2026!` |
 
+### Registro de usuarios y mensajes
+
+El administrador registra usuarios desde **Mi panel → Usuarios**. El sistema confirma el ID del usuario después de completar la transacción. En la instalación local, los registros se consultan en **cafebar_mvc → usuarios**. Los nombres completos admiten letras Unicode, tildes, ñ, espacios, apóstrofes y guiones; los números se rechazan tanto en el formulario como en PHP. El identificador de usuario sí puede contener números.
+
+Las contraseñas nuevas requieren al menos **8 caracteres**, con un máximo de 72 bytes para evitar el truncamiento de bcrypt. Esta regla se aplica al registro público, al alta administrativa y al cambio de contraseña del perfil. Cambiar una contraseña requiere la actual; las contraseñas existentes conservan su acceso.
+
+El panel **Mensajes de contacto** recibe las consultas del formulario **Contactos → Escríbenos algo** y las guarda en **cafebar_mvc → mensajes_contacto**. Los enlaces a WhatsApp abren un canal independiente. Marcar un mensaje como leído o respondido actualiza su estado; no envía correo ni mensajes de WhatsApp.
+
+Para comprobar validaciones, altas administrativas, registro público, cambio de contraseña y recepción de contactos por HTTP, ejecuta `php tests/usuarios.php`. La prueba crea y conserva una base aislada `cafebar_users_*`, comprueba los registros desde otra conexión MySQL y detiene su servidor temporal al terminar. Usa las variables `CAFEBAR_TEST_DSN`, `CAFEBAR_TEST_USER` y `CAFEBAR_TEST_PASSWORD` si la cuenta local de pruebas requiere configuración.
+
 ---
 
 ## 📁 Estructura del Proyecto

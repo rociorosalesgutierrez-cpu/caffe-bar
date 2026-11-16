@@ -27,7 +27,7 @@ function jsonRespuesta(array $datos,int $codigo=200): never {
 }
 function postAccion(callable $accion,string $volver): never {
     CsrfToken::verificar();
-    try {$accion();flash('Cambios guardados correctamente.');}
+    try {$mensaje=$accion();flash(is_string($mensaje)?$mensaje:'Cambios guardados correctamente.');}
     catch(DomainException $ex){flash($ex->getMessage(),false);}
     catch(PDOException $ex){if($ex->getCode()==='23000')flash('No se puede guardar: hay un dato duplicado o registros relacionados.',false);else throw $ex;}
     redirigir($volver);

@@ -5,6 +5,9 @@
     value="<?= e($persona['nombre'] ?? '') ?>"
     minlength="3"
     maxlength="120"
+    pattern="[\p{L}][\p{L}\p{M}]*(?:[ '’\-][\p{L}][\p{L}\p{M}]*)*"
+    title="Solo letras, espacios, apóstrofes y guiones; sin números."
+    data-person-name
     autocomplete="name"
     required
   >
@@ -45,6 +48,7 @@
       name="telefono"
       value="<?= e($persona['telefono'] ?? '') ?>"
       maxlength="25"
+      pattern="[+0-9 \(\)\-]{6,25}"
       autocomplete="tel"
     >
   </label>

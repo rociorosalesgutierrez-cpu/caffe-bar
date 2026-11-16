@@ -14,7 +14,12 @@ final class UsuarioModel
         if(password_needs_rehash($hash,PASSWORD_DEFAULT))Conexion::consulta('UPDATE usuarios SET password_hash=? WHERE id=?',[password_hash($clave,PASSWORD_DEFAULT),$u['id']]);
         unset($u['password_hash']);return $u;
     }
-    public function guardar(array $d,string $rol,int $estado,?int $id=null,?string $clave=null): void {
+    public function guardar(array $d,string $rol,int $estado,?int $id=null,?string $clave=null): int {
+        $d=Validador::persona($d);
+        $rol=Validador::opcion(['rol'=>$rol],'rol',['administrador','empleado','cliente']);
+        $estado=Validador::entero(['estado'=>$estado],'estado',0,1);
+        if($id!==null)$id=Validador::entero(['id'=>$id],'id');
+        if($id===null)$clave=Validador::clave(['clave'=>$clave]);
         $pdo=Conexion::obtener();$pdo->beginTransaction();
         try {
             $admins=Conexion::consulta("SELECT id FROM usuarios WHERE rol='administrador' AND estado=1 ORDER BY id FOR UPDATE")->fetchAll();
@@ -26,11 +31,14 @@ final class UsuarioModel
             }else{
                 if(!$clave)throw new DomainException('Falta la contraseña.');
                 Conexion::consulta('INSERT INTO usuarios(nombre,usuario,correo,telefono,direccion,rol,estado,password_hash) VALUES(?,?,?,?,?,?,?,?)',[...array_values($d),$rol,$estado,password_hash($clave,PASSWORD_DEFAULT)]);
+                $id=(int)$pdo->lastInsertId();
             }
-            $pdo->commit();
+            $pdo->commit();return $id;
         }catch(Throwable $e){$pdo->rollBack();throw $e;}
     }
     public function perfil(int $id,array $d,?string $actual,?string $nueva): void {
+        $d=Validador::persona($d);
+        if($nueva!==null)$nueva=Validador::clave(['clave'=>$nueva]);
         $pdo=Conexion::obtener();$pdo->beginTransaction();
         try {
             $u=Conexion::consulta('SELECT password_hash FROM usuarios WHERE id=? FOR UPDATE',[$id])->fetch();

@@ -88,6 +88,9 @@ $mapaIntegrado = Negocio::mapaIntegrado();
           name="nombre"
           minlength="3"
           maxlength="120"
+          pattern="[\p{L}][\p{L}\p{M}]*(?:[ '’\-][\p{L}][\p{L}\p{M}]*)*"
+          title="Solo letras, espacios, apóstrofes y guiones; sin números."
+          data-person-name
           autocomplete="name"
           placeholder="¿Cómo te llamas?"
           required

@@ -17,7 +17,7 @@ final class PublicoController
     public function enviar(): void {
         postAccion(function(): void {
             Intentos::registrar('contacto',5,900);
-            (new MensajeModel())->crear(Validador::texto($_POST,'nombre',3,120),Validador::correo($_POST),Validador::texto($_POST,'asunto',3,150),Validador::texto($_POST,'contenido',10,5000));
+            (new MensajeModel())->crear(Validador::nombre($_POST),Validador::correo($_POST),Validador::texto($_POST,'asunto',3,150),Validador::texto($_POST,'contenido',10,5000));
         },'contactos');
     }
 }

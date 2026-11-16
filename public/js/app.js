@@ -31,9 +31,15 @@ document.querySelectorAll('[data-print]').forEach(button => {
     if (new URL(a.href).pathname === location.pathname) { a.classList.add('activo'); a.setAttribute('aria-current','page'); }
   });
 })();
-document.querySelectorAll('form').forEach(form => {
-  form.addEventListener('submit', event => {
-    form.querySelectorAll('input[type="password"]').forEach(input => input.setCustomValidity(new TextEncoder().encode(input.value).length > 72 ? 'La contraseña no puede superar 72 bytes.' : ''));
+function validateFields(form) {
+    form.querySelectorAll('[data-person-name]').forEach(input => {
+      const valid = /^[\p{L}][\p{L}\p{M}]*(?:[ '’\-][\p{L}][\p{L}\p{M}]*)*$/u.test(input.value);
+      input.setCustomValidity(input.value && !valid ? 'El nombre solo admite letras, espacios, apóstrofes y guiones; no admite números.' : '');
+    });
+    form.querySelectorAll('input[type="password"]').forEach(input => {
+      const tooShort = input.value && input.minLength > 0 && Array.from(input.value).length < input.minLength;
+      input.setCustomValidity(new TextEncoder().encode(input.value).length > 72 ? 'La contraseña no puede superar 72 bytes.' : tooShort ? 'La contraseña debe tener al menos 8 caracteres.' : '');
+    });
     const first = form.querySelector('[name="nueva_clave"], [name="clave"][minlength]');
     const second = form.querySelector('[name="confirmacion"]');
     if (first && second) second.setCustomValidity(first.value !== second.value ? 'Las contraseñas no coinciden.' : '');
@@ -42,10 +48,14 @@ document.querySelectorAll('form').forEach(form => {
       const maximum = file.name === 'audio' ? 20971520 : 4194304;
       file.setCustomValidity(!file.disabled && file.files[0] && file.files[0].size > maximum ? (file.name === 'audio' ? 'El audio debe pesar como máximo 20 MB.' : 'La imagen debe pesar como máximo 4 MB.') : '');
     }
+}
+document.querySelectorAll('form').forEach(form => {
+  form.addEventListener('submit', event => {
+    validateFields(form);
     if (!form.checkValidity()) { event.preventDefault(); form.reportValidity(); return; }
     if (form.dataset.confirm && !confirm(form.dataset.confirm)) event.preventDefault();
   });
-  form.addEventListener('input', () => form.querySelectorAll('input').forEach(input => input.setCustomValidity('')));
+  form.addEventListener('input', () => validateFields(form));
 });
 const search = document.querySelector('#catalog-search');
 const category = document.querySelector('#catalog-category');

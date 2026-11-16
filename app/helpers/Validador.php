@@ -20,8 +20,15 @@ final class Validador
     public static function correo(array $d): string {
         $v=strtolower(self::texto($d,'correo',3,190));if(!filter_var($v,FILTER_VALIDATE_EMAIL))throw new DomainException('Correo inválido.');return $v;
     }
+    public static function nombre(array $d): string {
+        $v=self::texto($d,'nombre',3,120);
+        if(!preg_match("/^[\\p{L}][\\p{L}\\p{M}]*(?:[ '\x{2019}-][\\p{L}][\\p{L}\\p{M}]*)*$/uD",$v))throw new DomainException('El nombre solo admite letras, espacios, apóstrofes y guiones; no admite números.');
+        return $v;
+    }
     public static function clave(array $d,string $k='clave'): string {
-        $v=$d[$k]??null;if(!is_string($v)||strlen($v)<12||strlen($v)>72)throw new DomainException('La contraseña debe tener entre 12 y 72 bytes.');return $v;
+        $v=$d[$k]??null;
+        if(!is_string($v)||str_contains($v,"\0")||($longitud=preg_match_all('/./us',$v))===false||$longitud<8||strlen($v)>72)throw new DomainException('La contraseña debe tener al menos 8 caracteres válidos y no superar 72 bytes.');
+        return $v;
     }
     public static function precio(array $d): string {
         $v=self::texto($d,'precio',1,12);
@@ -33,7 +40,7 @@ final class Validador
         if(!preg_match('/^[a-zA-Z0-9_.-]+$/D',$usuario))throw new DomainException('El usuario solo admite letras, números, punto, guion y guion bajo.');
         $telefono=self::texto($d,'telefono',0,25);
         if($telefono!==''&&!preg_match('/^[+0-9 ()-]{6,25}$/D',$telefono))throw new DomainException('Teléfono inválido.');
-        return ['nombre'=>self::texto($d,'nombre',3,120),'usuario'=>$usuario,'correo'=>self::correo($d),'telefono'=>$telefono,'direccion'=>self::texto($d,'direccion',0,250)];
+        return ['nombre'=>self::nombre($d),'usuario'=>$usuario,'correo'=>self::correo($d),'telefono'=>$telefono,'direccion'=>self::texto($d,'direccion',0,250)];
     }
     public static function fecha(mixed $v): bool {
         if(!is_string($v)||!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$v))return false;

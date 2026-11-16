@@ -16,11 +16,12 @@
       <input
         type="password"
         name="clave"
-        minlength="12"
+        minlength="8"
         maxlength="72"
         autocomplete="new-password"
         required
       >
+      <small class="muted">Mínimo 8 caracteres; máximo 72 bytes.</small>
     </label>
 
     <label>
@@ -28,7 +29,7 @@
       <input
         type="password"
         name="confirmacion"
-        minlength="12"
+        minlength="8"
         maxlength="72"
         autocomplete="new-password"
         required
