@@ -1,4 +1,7 @@
 'use strict';
+document.querySelectorAll('[data-print]').forEach(button => {
+  button.addEventListener('click', () => window.print());
+});
 (() => {
   const buttons = document.querySelectorAll('.theme-rotator');
   function applyTheme(theme) {

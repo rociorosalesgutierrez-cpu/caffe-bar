@@ -9,7 +9,7 @@
     <a class="boton secundario" href="<?= e(url('admin/reportes/csv?desde=' . $desde . '&hasta=' . $hasta . '&estado=' . $estado)) ?>">
       Exportar CSV 📥
     </a>
-    <button class="boton" type="button" onclick="window.print()">
+    <button class="boton" type="button" data-print>
       Imprimir Reporte 🖨️
     </button>
   </div>

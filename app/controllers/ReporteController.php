@@ -10,18 +10,24 @@ final class ReporteController
         $this->usuario = AuthMiddleware::exigir();
     }
 
+    private function filtros(): array
+    {
+        $desde = $_GET['desde'] ?? date('Y-m-01');
+        $hasta = $_GET['hasta'] ?? date('Y-m-d');
+        $estado = $_GET['estado'] ?? '';
+
+        return [
+            Validador::fecha($desde) ? $desde : date('Y-m-01'),
+            Validador::fecha($hasta) ? $hasta : date('Y-m-d'),
+            in_array($estado, ['pendiente', 'preparando', 'entregado', 'cancelado'], true) ? $estado : '',
+        ];
+    }
+
     public function index(): void
     {
         AuthMiddleware::exigir(['administrador', 'empleado']);
 
-        $hoy = date('Y-m-d');
-        $inicioMes = date('Y-m-01');
-
-        $desde = Validador::fecha($_GET['desde'] ?? $inicioMes) ? $_GET['desde'] : $inicioMes;
-        $hasta = Validador::fecha($_GET['hasta'] ?? $hoy) ? $_GET['hasta'] : $hoy;
-        $estado = in_array($_GET['estado'] ?? '', ['pendiente', 'preparando', 'entregado', 'cancelado'], true)
-            ? $_GET['estado']
-            : '';
+        [$desde, $hasta, $estado] = $this->filtros();
 
         $model = new ReporteModel();
         $datos = $model->obtenerVentas($desde, $hasta, $estado);
@@ -41,14 +47,7 @@ final class ReporteController
     {
         AuthMiddleware::exigir(['administrador', 'empleado']);
 
-        $hoy = date('Y-m-d');
-        $inicioMes = date('Y-m-01');
-
-        $desde = Validador::fecha($_GET['desde'] ?? $inicioMes) ? $_GET['desde'] : $inicioMes;
-        $hasta = Validador::fecha($_GET['hasta'] ?? $hoy) ? $_GET['hasta'] : $hoy;
-        $estado = in_array($_GET['estado'] ?? '', ['pendiente', 'preparando', 'entregado', 'cancelado'], true)
-            ? $_GET['estado']
-            : '';
+        [$desde, $hasta, $estado] = $this->filtros();
 
         $model = new ReporteModel();
         $datos = $model->obtenerVentas($desde, $hasta, $estado);

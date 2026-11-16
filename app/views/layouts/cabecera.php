@@ -15,5 +15,5 @@
 <?php endif ?>
 <?php if($archivo==='admin/reproductor'): ?><script src="<?= e(url('js/reproductor.js?v=4')) ?>" defer></script><?php endif ?>
 <link rel="stylesheet" href="<?= e(url('css/responsive.css?v=2')) ?>">
-<script src="<?= e(url('js/app.js?v=6')) ?>" defer></script>
+<script src="<?= e(url('js/app.js?v=7')) ?>" defer></script>
 <script src="<?= e(url('js/carrito.js?v=3')) ?>" defer></script>
