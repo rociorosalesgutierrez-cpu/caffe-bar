@@ -2,19 +2,8 @@
 
 declare(strict_types = 1);
 
-date_default_timezone_set('UTC');
-spl_autoload_register(function (string $clase): void {
-    if (!preg_match('/^[A-Za-z]+$/D', $clase)) {
-        return;
-    }
-    foreach (['config', 'helpers', 'models', 'controllers'] as $dir) {
-        $file = dirname(__DIR__) . '/' . $dir . '/' . $clase . '.php';
-        if (is_file($file)) {
-            require $file;
-            return;
-        }
-    }
-});
+require_once dirname(__DIR__, 2) . '/core/inicio.php';
+
 function e(mixed $v): string
 {
     return htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -54,12 +43,9 @@ function flash(string $mensaje, bool $ok = true): void
 }
 function vista(string $archivo, array $datos = [], bool $panel = false): void
 {
-    extract($datos, EXTR_SKIP);
-    $actual = AuthMiddleware::usuario();
-    $aviso = $_SESSION['flash'] ?? null;
-    unset($_SESSION['flash']);
-    require dirname(__DIR__) . '/views/layouts/' . ($panel ? 'admin' : 'publico') . '.php';
+    Vista::mostrar($archivo, $datos, $panel);
 }
+
 function jsonRespuesta(array $datos, int $codigo = 200): never
 {
     http_response_code($codigo);

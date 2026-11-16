@@ -56,7 +56,7 @@
 <?php endif; ?>
 <link
     rel="stylesheet"
-    href="<?= e(url('css/responsive.css?v=3')) ?>"
+    href="<?= e(url('css/responsive.css?v=4')) ?>"
 >
 <script
     src="<?= e(url('js/app.js?v=9')) ?>"
@@ -64,6 +64,9 @@
 ></script>
 <?php if ($archivo === 'admin/factura'): ?>
     <link rel="stylesheet" href="<?= e(url('css/factura.css?v=1')) ?>">
+<?php endif; ?>
+<?php if (in_array($archivo, ['admin/pedidos', 'admin/pedido'], true) && !empty($cliente)): ?>
+    <script src="<?= e(url('js/pedidos.js?v=1')) ?>" defer></script>
 <?php endif; ?>
 <script
     src="<?= e(url('js/carrito.js?v=3')) ?>"

@@ -569,6 +569,122 @@ try {
         'empleado mantiene la restricción de compra'
     );
 
+    $paginaPersonal = solicitar('/admin/pedidos', $personal);
+    $csrfPersonal = token($paginaPersonal);
+    $idCliente = (int) $pedidoCliente['id'];
+    $estado = solicitar('/mis-pedidos/estado?id=' . $idCliente, $cliente);
+    $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        $estado['status'] === 200 && $json['pedidos'][0]['estado'] === 'pendiente',
+        'cliente consulta el estado pendiente de su pedido'
+    );
+    $listado = solicitar('/mis-pedidos', $cliente);
+    $detalle = solicitar('/pedido?id=' . $idCliente, $cliente);
+    comprobar(
+        str_contains($listado['html'], 'js/pedidos.js?v=1') &&
+            str_contains($detalle['html'], 'data-pedidos-url='),
+        'lista y detalle del cliente incluyen actualización automática'
+    );
+
+    $ajeno = solicitar('/mis-pedidos/estado?id=' . $pedidoAdmin['id'], $cliente);
+    comprobar($ajeno['status'] === 404, 'cliente no consulta el estado de pedidos ajenos');
+    $ajeno = solicitar('/mis-pedidos/estado?usuario_id=1', $cliente);
+    $json = json_decode($ajeno['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        count($json['pedidos']) === 1 && (int) $json['pedidos'][0]['id'] === $idCliente,
+        'la URL no puede cambiar el propietario consultado'
+    );
+    comprobar(
+        solicitar('/mis-pedidos/estado', $personal)['status'] === 403,
+        'el endpoint personal conserva las restricciones de rol'
+    );
+
+    $denegado = solicitar('/admin/pedidos/estado', $cliente, [
+        'csrf' => token($detalle),
+        'id' => $idCliente,
+        'estado' => 'entregado'
+    ]);
+    comprobar($denegado['status'] === 403, 'el cliente no cambia el estado de su propio pedido');
+
+    foreach (['preparando', 'entregado'] as $nuevoEstado) {
+        solicitar('/admin/pedidos/estado', $personal, [
+            'csrf' => $csrfPersonal,
+            'id' => $idCliente,
+            'estado' => $nuevoEstado
+        ]);
+        $estado = solicitar('/mis-pedidos/estado?id=' . $idCliente, $cliente);
+        $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+        $listado = solicitar('/mis-pedidos', $cliente);
+        $detalle = solicitar('/pedido?id=' . $idCliente, $cliente);
+        $patron = '/data-pedido-estado="' . $idCliente . '"\s+data-estado="' . $nuevoEstado . '"/';
+        comprobar(
+            $json['pedidos'][0]['estado'] === $nuevoEstado &&
+                preg_match($patron, $listado['html']) === 1 &&
+                preg_match($patron, $detalle['html']) === 1,
+            'cambio del personal visible para el cliente en API, lista y detalle: ' . $nuevoEstado
+        );
+    }
+
+    solicitar('/admin/pedidos/estado', $personal, [
+        'csrf' => $csrfPersonal,
+        'id' => $idCliente,
+        'estado' => 'pendiente'
+    ]);
+    $estado = solicitar('/mis-pedidos/estado?id=' . $idCliente, $cliente);
+    $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        $json['pedidos'][0]['estado'] === 'entregado',
+        'estado final entregado no se revierte'
+    );
+
+    $pagina = solicitar('/carrito', $cliente);
+    preg_match('/name="token"\s+value="([^"]+)"/', $pagina['html'], $pedidoToken);
+    solicitar('/carrito/confirmar', $cliente, [
+        'csrf' => token($pagina),
+        'token' => $pedidoToken[1],
+        'items' => '{"1":1}'
+    ]);
+    $ultimoPedido = (int) $lector
+        ->query('SELECT MAX(id) FROM pedidos WHERE usuario_id=' . (int) $u['id'])
+        ->fetchColumn();
+    $stockTrasCompra = (int) $lector
+        ->query('SELECT stock FROM productos WHERE id=1')
+        ->fetchColumn();
+    foreach ([1, 2] as $intento) {
+        solicitar('/admin/pedidos/estado', $personal, [
+            'csrf' => $csrfPersonal,
+            'id' => $ultimoPedido,
+            'estado' => 'cancelado'
+        ]);
+    }
+    $estado = solicitar('/mis-pedidos/estado?id=' . $ultimoPedido, $cliente);
+    $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        $json['pedidos'][0]['estado'] === 'cancelado' &&
+            (int) $lector->query('SELECT stock FROM productos WHERE id=1')->fetchColumn() ===
+                $stockTrasCompra + 1,
+        'cancelación visible al cliente y reposición de stock una sola vez'
+    );
+
+    $nosotros = solicitar('/nosotros', $visitante);
+    $foto = solicitar('/images/nosotros-cafeteria.jpg', $visitante);
+    comprobar(
+        $nosotros['status'] === 200 &&
+            str_contains($nosotros['html'], 'images/nosotros-cafeteria.jpg') &&
+            substr($foto['html'], 0, 3) === "\xff\xd8\xff",
+        'Nosotros muestra una fotografía JPEG real servida localmente'
+    );
+    $archivoConexion = (new ReflectionClass(Conexion::class))->getFileName();
+    comprobar(
+        str_replace('\\', '/', $archivoConexion) ===
+            str_replace('\\', '/', $raiz . '/core/Conexion.php'),
+        'la aplicación utiliza la conexión de la carpeta core'
+    );
+    comprobar(
+        solicitar('/core/Conexion.php', $visitante)['status'] === 404,
+        'el núcleo no queda expuesto como archivo público'
+    );
+
     echo 'Base aislada conservada: ' . $nombreDb . PHP_EOL;
 } finally {
     proc_terminate($proceso);

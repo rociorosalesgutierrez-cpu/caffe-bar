@@ -24,6 +24,24 @@ fieldset {
     padding-top: 1.25rem;
 }
 
+.nosotros-foto {
+    margin: 0;
+    min-width: 0;
+}
+
+.nosotros-foto .imagen-historia {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.nosotros-foto figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.7rem;
+}
+
 .mensajes-grid article > form {
     margin-top: 1.25rem;
 }

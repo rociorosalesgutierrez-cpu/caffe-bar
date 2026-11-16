@@ -136,11 +136,18 @@ Para comprobar validaciones, altas administrativas, registro público, cambio de
 
 El código utiliza indentación de cuatro espacios, instrucciones separadas y bloques multilínea. Los nombres de variables describen los datos que contienen. Las vistas conservan sus clases y contenido; las hojas CSS mantienen el diseño. El archivo `.editorconfig` ayuda a conservar este formato en el editor.
 
+La carpeta [`core`](core/README.md) reúne el arranque, el enrutador, la tabla de rutas, el renderizado de vistas y la conexión PDO. `public/index.php` actúa como punto de entrada; los controladores y modelos continúan en `app`.
+
+Los estados del pedido se consultan cada cinco segundos desde **Mis pedidos** y su detalle mediante `GET /mis-pedidos/estado`. La consulta usa el ID de la sesión: cada cliente ve únicamente sus pedidos. Los cambios siguen restringidos al administrador y al personal; las transiciones finales y la reposición única de stock se conservan. La consulta se pausa cuando la pestaña está oculta y avisa si hay pérdida de conexión o caduca la sesión.
+
+La sección **Nosotros** utiliza una fotografía real alojada en `public/images/nosotros-cafeteria.jpg`, con crédito y procedencia en [`public/images/LICENCIAS.md`](public/images/LICENCIAS.md).
+
 Para actualizar la recopilación de código sin crear el ZIP, ejecuta `./generar-entrega.ps1 -SoloCodigo`.
 
 ```text
+├── core/                # Inicio, rutas, enrutador, vistas y conexión PDO
 ├── app/
-│   ├── config/          # Conexión PDO, datos del negocio y configuración
+│   ├── config/          # Datos del negocio y configuración privada
 │   ├── controllers/     # Controladores MVC (Auth, Reportes, Pedidos, Productos, etc.)
 │   ├── helpers/         # Middleware, Validador, Token CSRF, Imágenes, Utilidades
 │   ├── models/          # Modelos de datos con transacciones ACID y SELECT FOR UPDATE

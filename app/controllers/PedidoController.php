@@ -60,4 +60,22 @@ final class PedidoController
             );
         }, 'admin/pedidos');
     }
+
+    public function estados(): void
+    {
+        AuthMiddleware::exigir(AuthMiddleware::ROLES_COMPRA);
+        $id = null;
+
+        if (isset($_GET['id'])) {
+            $id = Validador::entero($_GET, 'id');
+        }
+
+        $pedidos = (new PedidoModel())->estadosDelUsuario((int) $this->usuario['id'], $id);
+
+        if ($id !== null && !$pedidos) {
+            jsonRespuesta(['error' => 'Pedido inexistente o sin permiso.'], 404);
+        }
+
+        jsonRespuesta(['pedidos' => $pedidos]);
+    }
 }

@@ -9,7 +9,7 @@ $files = @(
     'public/index.php'
     'public/.htaccess'
     'app/config/Config.php'
-    'app/config/Conexion.php'
+    'core/Conexion.php'
     'app/config/local.example.php'
     'app/config/datos-negocio.php'
     'app/helpers/Funciones.php'
@@ -119,6 +119,16 @@ $files = @(
     'public/css/factura.css'
     'tests/importe-literal.php'
     'tests/impresion.js'
+    'core/Aplicacion.php'
+    'core/Autocargador.php'
+    'core/Enrutador.php'
+    'core/README.md'
+    'core/Vista.php'
+    'core/inicio.php'
+    'core/rutas.php'
+    'public/images/LICENCIAS.md'
+    'public/js/pedidos.js'
+    'tests/pedidos.js'
 )
 $text = New-Object System.Text.StringBuilder
 [void]$text.AppendLine('# CafeBar MVC: construccion y codigo completo')
@@ -171,7 +181,11 @@ $zipPath = Join-Path (Split-Path $project -Parent) 'cafebar-mvc-entrega.zip'
 $zipStream = [IO.File]::Open($zipPath, [IO.FileMode]::Create, [IO.FileAccess]::ReadWrite)
 $zip = New-Object IO.Compression.ZipArchive($zipStream, [IO.Compression.ZipArchiveMode]::Create)
 try {
-    foreach ($file in ($files + @('CODIGO-COMPLETO.md', 'public/images/wego-hero.png', 'public/fonts/nunito-variable.ttf'))) {
+    $imagenes = Get-ChildItem -LiteralPath (Join-Path $project 'public/images') -File | Where-Object { $_.Extension -in @('.jpg', '.jpeg', '.png', '.webp') }
+    $archivosImagen = $imagenes | ForEach-Object { 'public/images/' + $_.Name }
+    $archivosZip = $files + @('CODIGO-COMPLETO.md', 'public/fonts/nunito-variable.ttf') + $archivosImagen
+
+    foreach ($file in $archivosZip) {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $project $file), ('cafebar-mvc/' + $file)) | Out-Null
     }
 }

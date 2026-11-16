@@ -6,6 +6,8 @@
     <div class="acciones">
         <span
             class="estado <?= e($pedido['estado']) ?>"
+            data-pedido-estado="<?= e($pedido['id']) ?>"
+            data-estado="<?= e($pedido['estado']) ?>"
             style="font-size: 0.9rem; padding: 0.4rem 1rem;"
         > <?= e(ucfirst($pedido['estado'])) ?> </span>
         <a
@@ -15,7 +17,13 @@
         > Ver / imprimir factura 📄 </a>
     </div>
 </div>
-<section class="tarjeta">
+<?php if ($cliente): ?>
+    <p class="muted" role="status" data-pedidos-status>El estado se actualiza automáticamente.</p>
+<?php endif; ?>
+<section
+    class="tarjeta"
+    <?= $cliente ? 'data-pedidos-url="' . e(url('mis-pedidos/estado?id=' . $pedido['id'])) . '"' : '' ?>
+>
     <div
         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
         <div>

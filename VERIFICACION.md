@@ -1,5 +1,14 @@
 # Verificación realizada
 
+## Estado del pedido para el cliente, fotografía y núcleo MVC
+
+- Se comprobó con sesiones de personal y cliente en una base aislada el ciclo pendiente → preparando → entregado. La API, la lista y el detalle del cliente presentan cada cambio. También se comprobó cancelación, reposición de stock una sola vez y rechazo de cambios sobre estados finales.
+- La API de estados ignora propietarios indicados por URL, rechaza pedidos ajenos y conserva los permisos por rol. El cliente no puede cambiar el estado de su pedido.
+- La prueba JavaScript ejecuta el archivo de actualización automática y verifica cambio de texto y clase, conservación del último estado ante pérdida de conexión, pausa en pestaña oculta y detención por sesión caducada.
+- Nosotros sirve una fotografía JPEG real de Toa Heftiba, alojada localmente, con crédito y enlace a la licencia. Se inspeccionó la imagen descargada y se verificó su respuesta HTTP; se utiliza como referencia y no como fotografía del establecimiento.
+- El núcleo MVC queda en `core`: arranque, carga de clases, aplicación, rutas, enrutador, vistas y conexión. La conexión anterior de `app/config/Conexion.php` se trasladó a `core/Conexion.php`. Los scripts que cargan `Funciones.php` siguen funcionando.
+- Tras la reorganización pasaron las pruebas HTTP de usuarios, respuestas, compras y facturas, además de pedidos, permisos, concurrencia y música. El esquema de la base no cambió.
+
 ## Respuestas, compras del administrador, red local y factura
 
 - Migración de contactos ejecutada dos veces sin perder consultas: propietario por ID de sesión, enlace privado con hash, respuesta, administrador responsable y fecha UTC.

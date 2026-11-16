@@ -109,6 +109,21 @@ final class PedidoModel
         return $p;
     }
 
+    public function estadosDelUsuario(int $usuario, ?int $id = null): array
+    {
+        $sql = 'SELECT id,estado FROM pedidos WHERE usuario_id=?';
+        $parametros = [$usuario];
+
+        if ($id !== null) {
+            $sql .= ' AND id=?';
+            $parametros[] = $id;
+        }
+
+        $sql .= ' ORDER BY id DESC LIMIT 500';
+
+        return Conexion::consulta($sql, $parametros)->fetchAll();
+    }
+
     public function estado(int $id, string $nuevo): void
     {
         $pdo = Conexion::obtener();

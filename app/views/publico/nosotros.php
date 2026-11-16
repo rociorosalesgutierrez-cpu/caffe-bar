@@ -5,13 +5,20 @@
         del día.</p>
 </section>
 <div class="dos-columnas seccion">
-    <img
-        class="imagen-historia"
-        src="<?= e(url('images/cafe.svg')) ?>"
-        alt="Ilustración de una taza de café"
-        width="600"
-        height="450"
-    >
+    <figure class="nosotros-foto">
+        <img
+            class="imagen-historia"
+            src="<?= e(url('images/nosotros-cafeteria.jpg')) ?>"
+            alt="Interior de una cafetería con barra de madera, lámparas y plantas"
+            width="1600"
+            height="2275"
+            loading="lazy"
+        >
+        <figcaption class="muted">
+            Fotografía de referencia de
+            <a href="https://unsplash.com/photos/black-and-gray-chair-beside-white-table-w9Gzk7aPGfY" target="_blank" rel="noopener noreferrer">Toa Heftiba · Unsplash</a>.
+        </figcaption>
+    </figure>
     <section>
         <p class="etiqueta">NUESTRA HISTORIA</p>
         <h2>Todo empieza con una buena taza</h2>

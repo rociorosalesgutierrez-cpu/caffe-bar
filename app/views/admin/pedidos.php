@@ -17,7 +17,13 @@
         <?php endif; ?>
     </div>
 </div>
-<div class="tabla-contenedor">
+<?php if ($cliente): ?>
+    <p class="muted" role="status" data-pedidos-status>Los estados se actualizan automáticamente.</p>
+<?php endif; ?>
+<div
+    class="tabla-contenedor"
+    <?= $cliente ? 'data-pedidos-url="' . e(url('mis-pedidos/estado')) . '"' : '' ?>
+>
     <table>
         <thead>
             <tr>
@@ -41,7 +47,11 @@
                     ) ?> </td>
                     <td><strong><?= e(bs($pedido['total'])) ?></strong></td>
                     <td>
-                        <span class="estado <?= e($pedido['estado']) ?>"> <?= e(ucfirst($pedido['estado'])) ?> </span>
+                        <span
+                            class="estado <?= e($pedido['estado']) ?>"
+                            data-pedido-estado="<?= e($pedido['id']) ?>"
+                            data-estado="<?= e($pedido['estado']) ?>"
+                        ><?= e(ucfirst($pedido['estado'])) ?></span>
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">

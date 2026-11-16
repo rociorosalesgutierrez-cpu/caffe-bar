@@ -9,7 +9,7 @@ New-Item -ItemType File -Force cafebar-mvc/database/actualizar-musica.php
 New-Item -ItemType File -Force cafebar-mvc/public/index.php
 New-Item -ItemType File -Force cafebar-mvc/public/.htaccess
 New-Item -ItemType File -Force cafebar-mvc/app/config/Config.php
-New-Item -ItemType File -Force cafebar-mvc/app/config/Conexion.php
+New-Item -ItemType File -Force cafebar-mvc/core/Conexion.php
 New-Item -ItemType File -Force cafebar-mvc/app/config/local.example.php
 New-Item -ItemType File -Force cafebar-mvc/app/config/datos-negocio.php
 New-Item -ItemType File -Force cafebar-mvc/app/helpers/Funciones.php
@@ -119,6 +119,16 @@ New-Item -ItemType File -Force cafebar-mvc/database/actualizar-contactos.php
 New-Item -ItemType File -Force cafebar-mvc/public/css/factura.css
 New-Item -ItemType File -Force cafebar-mvc/tests/importe-literal.php
 New-Item -ItemType File -Force cafebar-mvc/tests/impresion.js
+New-Item -ItemType File -Force cafebar-mvc/core/Aplicacion.php
+New-Item -ItemType File -Force cafebar-mvc/core/Autocargador.php
+New-Item -ItemType File -Force cafebar-mvc/core/Enrutador.php
+New-Item -ItemType File -Force cafebar-mvc/core/README.md
+New-Item -ItemType File -Force cafebar-mvc/core/Vista.php
+New-Item -ItemType File -Force cafebar-mvc/core/inicio.php
+New-Item -ItemType File -Force cafebar-mvc/core/rutas.php
+New-Item -ItemType File -Force cafebar-mvc/public/images/LICENCIAS.md
+New-Item -ItemType File -Force cafebar-mvc/public/js/pedidos.js
+New-Item -ItemType File -Force cafebar-mvc/tests/pedidos.js
 Set-Location cafebar-mvc
 ```
 
@@ -545,138 +555,12 @@ echo "Tablas musicales actualizadas sin borrar datos existentes.\n";
 declare(strict_types = 1);
 
 define('BASE_URL', rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/.'));
-require dirname(__DIR__) . '/app/helpers/Funciones.php';
-ini_set('display_errors', '0');
-ini_set('session.use_strict_mode', '1');
-ini_set('session.use_only_cookies', '1');
-foreach (['sessions', 'limites', 'tmp'] as $dir) {
-    $path = dirname(__DIR__) . '/storage/' . $dir;
-    if (!is_dir($path) && !mkdir($path, 0700, true) && !is_dir($path)) {
-        http_response_code(503);
-        exit('No se pudo preparar el almacenamiento privado.');
-    }
-}
-session_save_path(dirname(__DIR__) . '/storage/sessions');
-session_name('cafebar_session');
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path' => BASE_URL ?: '/',
-    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
-if (!session_start()) {
-    http_response_code(503);
-    exit('No se pudo iniciar la sesión.');
-}
-$solicitudPath =
-    '/' .
-    trim(
-        substr(
-            rawurldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/'),
-            strlen(BASE_URL)
-        ),
-        '/'
-    );
-$youtubePermitido = $solicitudPath === '/admin/musica/reproductor';
-$scriptPolicy = $youtubePermitido ? "'self' https://www.youtube.com https://s.ytimg.com" : "'self'";
-$framePolicy =
-    'https://maps.google.com https://www.google.com' .
-    ($youtubePermitido ? ' https://www.youtube.com https://www.youtube-nocookie.com' : '');
-header(
-    "Content-Security-Policy: default-src 'self'; script-src $scriptPolicy; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self'; frame-src $framePolicy; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
-);
-header('X-Content-Type-Options: nosniff');
-header('Referrer-Policy: same-origin');
-header('Cache-Control: no-store');
-$path =
-    '/' .
-    trim(
-        substr(
-            rawurldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/'),
-            strlen(BASE_URL)
-        ),
-        '/'
-    );
-$routes = [
-    'GET /' => [PublicoController::class, 'inicio'],
-    'GET /nosotros' => [PublicoController::class, 'nosotros'],
-    'GET /productos' => [PublicoController::class, 'productos'],
-    'GET /contactos' => [PublicoController::class, 'contactos'],
-    'POST /contactos' => [PublicoController::class, 'enviar'],
-    'GET /acceder' => [AuthController::class, 'acceder'],
-    'POST /acceder' => [AuthController::class, 'login'],
-    'GET /registro' => [AuthController::class, 'registro'],
-    'POST /registro' => [AuthController::class, 'registrar'],
-    'POST /salir' => [AuthController::class, 'salir'],
-    'GET /carrito' => [CarritoController::class, 'index'],
-    'POST /carrito/confirmar' => [CarritoController::class, 'confirmar'],
-    'GET /admin' => [DashboardController::class, 'index'],
-    'GET /admin/indicadores' => [DashboardController::class, 'indicadores'],
-    'GET /admin/productos' => [ProductoController::class, 'index'],
-    'POST /admin/productos/guardar' => [ProductoController::class, 'guardar'],
-    'POST /admin/productos/eliminar' => [ProductoController::class, 'eliminar'],
-    'GET /admin/categorias' => [CategoriaController::class, 'index'],
-    'POST /admin/categorias/guardar' => [CategoriaController::class, 'guardar'],
-    'POST /admin/categorias/eliminar' => [CategoriaController::class, 'eliminar'],
-    'GET /admin/usuarios' => [UsuarioController::class, 'index'],
-    'POST /admin/usuarios/guardar' => [UsuarioController::class, 'guardar'],
-    'GET /admin/pedidos' => [PedidoController::class, 'index'],
-    'POST /admin/pedidos/estado' => [PedidoController::class, 'estado'],
-    'GET /mis-pedidos' => [PedidoController::class, 'mios'],
-    'GET /pedido' => [PedidoController::class, 'detalle'],
-    'GET /admin/mensajes' => [MensajeController::class, 'index'],
-    'POST /admin/mensajes/estado' => [MensajeController::class, 'estado'],
-    'POST /admin/mensajes/responder' => [MensajeController::class, 'responder'],
-    'POST /admin/mensajes/eliminar' => [MensajeController::class, 'eliminar'],
-    'GET /mis-mensajes' => [ConsultaController::class, 'mias'],
-    'GET /consulta' => [ConsultaController::class, 'privada'],
-    'GET /admin/reportes' => [ReporteController::class, 'index'],
-    'GET /admin/reportes/csv' => [ReporteController::class, 'csv'],
-    'GET /admin/factura' => [ReporteController::class, 'factura'],
-    'GET /factura' => [ReporteController::class, 'facturaCliente'],
-    'GET /perfil' => [PerfilController::class, 'index'],
-    'POST /perfil' => [PerfilController::class, 'guardar'],
-    'GET /musica' => [MusicaController::class, 'index'],
-    'GET /musica/estado' => [MusicaController::class, 'estado'],
-    'POST /musica/sugerir' => [MusicaController::class, 'sugerir'],
-    'POST /admin/musica/agregar' => [MusicaController::class, 'agregar'],
-    'POST /admin/musica/moderar' => [MusicaController::class, 'moderar'],
-    'POST /admin/musica/encolar' => [MusicaController::class, 'encolar'],
-    'POST /admin/musica/activar' => [MusicaController::class, 'activar'],
-    'GET /admin/musica/reproductor' => [MusicaController::class, 'reproductor'],
-    'POST /admin/musica/control' => [MusicaController::class, 'control']
-];
-try {
-    $ruta = $routes[$_SERVER['REQUEST_METHOD'] . ' ' . $path] ?? null;
-    if (!$ruta) {
-        http_response_code(404);
-        vista('publico/error', ['mensaje' => 'La página solicitada no existe.']);
-    } else {
-        $claseControlador = $ruta[0];
-        $metodo = $ruta[1];
-        $controlador = new $claseControlador();
-        $controlador->$metodo();
-    }
-} catch (DomainException $e) {
-    if (http_response_code() < 400) {
-        http_response_code(422);
-    }
-    vista('publico/error', ['mensaje' => $e->getMessage()]);
-} catch (JsonException $e) {
-    http_response_code(422);
-    vista('publico/error', ['mensaje' => 'El carrito contiene un formato inválido.']);
-} catch (Throwable $e) {
-    error_log((string) $e);
-    http_response_code(500);
-    if ($path === '/admin/indicadores') {
-        jsonRespuesta(['error' => 'Servicio no disponible.'], 500);
-    }
-    vista('publico/error', [
-        'mensaje' =>
-            'No se pudo completar la solicitud. Revisa la conexión o el registro del servidor.'
-    ]);
-}
+
+require_once dirname(__DIR__) . '/core/inicio.php';
+require_once dirname(__DIR__) . '/app/helpers/Funciones.php';
+
+$aplicacion = new Aplicacion();
+$aplicacion->ejecutar();
 
 ````
 
@@ -723,7 +607,7 @@ final class Config
 
 ````
 
-## 8. app/config/Conexion.php
+## 8. core/Conexion.php
 ````php
 <?php
 
@@ -802,19 +686,8 @@ return [
 
 declare(strict_types = 1);
 
-date_default_timezone_set('UTC');
-spl_autoload_register(function (string $clase): void {
-    if (!preg_match('/^[A-Za-z]+$/D', $clase)) {
-        return;
-    }
-    foreach (['config', 'helpers', 'models', 'controllers'] as $dir) {
-        $file = dirname(__DIR__) . '/' . $dir . '/' . $clase . '.php';
-        if (is_file($file)) {
-            require $file;
-            return;
-        }
-    }
-});
+require_once dirname(__DIR__, 2) . '/core/inicio.php';
+
 function e(mixed $v): string
 {
     return htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -854,12 +727,9 @@ function flash(string $mensaje, bool $ok = true): void
 }
 function vista(string $archivo, array $datos = [], bool $panel = false): void
 {
-    extract($datos, EXTR_SKIP);
-    $actual = AuthMiddleware::usuario();
-    $aviso = $_SESSION['flash'] ?? null;
-    unset($_SESSION['flash']);
-    require dirname(__DIR__) . '/views/layouts/' . ($panel ? 'admin' : 'publico') . '.php';
+    Vista::mostrar($archivo, $datos, $panel);
 }
+
 function jsonRespuesta(array $datos, int $codigo = 200): never
 {
     http_response_code($codigo);
@@ -1843,6 +1713,21 @@ final class PedidoModel
             [$id]
         )->fetchAll();
         return $p;
+    }
+
+    public function estadosDelUsuario(int $usuario, ?int $id = null): array
+    {
+        $sql = 'SELECT id,estado FROM pedidos WHERE usuario_id=?';
+        $parametros = [$usuario];
+
+        if ($id !== null) {
+            $sql .= ' AND id=?';
+            $parametros[] = $id;
+        }
+
+        $sql .= ' ORDER BY id DESC LIMIT 500';
+
+        return Conexion::consulta($sql, $parametros)->fetchAll();
     }
 
     public function estado(int $id, string $nuevo): void
@@ -2865,6 +2750,24 @@ final class PedidoController
             );
         }, 'admin/pedidos');
     }
+
+    public function estados(): void
+    {
+        AuthMiddleware::exigir(AuthMiddleware::ROLES_COMPRA);
+        $id = null;
+
+        if (isset($_GET['id'])) {
+            $id = Validador::entero($_GET, 'id');
+        }
+
+        $pedidos = (new PedidoModel())->estadosDelUsuario((int) $this->usuario['id'], $id);
+
+        if ($id !== null && !$pedidos) {
+            jsonRespuesta(['error' => 'Pedido inexistente o sin permiso.'], 404);
+        }
+
+        jsonRespuesta(['pedidos' => $pedidos]);
+    }
 }
 
 ````
@@ -3186,7 +3089,7 @@ final class MusicaController
 <?php endif; ?>
 <link
     rel="stylesheet"
-    href="<?= e(url('css/responsive.css?v=3')) ?>"
+    href="<?= e(url('css/responsive.css?v=4')) ?>"
 >
 <script
     src="<?= e(url('js/app.js?v=9')) ?>"
@@ -3194,6 +3097,9 @@ final class MusicaController
 ></script>
 <?php if ($archivo === 'admin/factura'): ?>
     <link rel="stylesheet" href="<?= e(url('css/factura.css?v=1')) ?>">
+<?php endif; ?>
+<?php if (in_array($archivo, ['admin/pedidos', 'admin/pedido'], true) && !empty($cliente)): ?>
+    <script src="<?= e(url('js/pedidos.js?v=1')) ?>" defer></script>
 <?php endif; ?>
 <script
     src="<?= e(url('js/carrito.js?v=3')) ?>"
@@ -3704,13 +3610,20 @@ $accesoLogo = $actual ? ($actual['rol'] === 'cliente' ? 'mis-pedidos' : 'admin')
         del día.</p>
 </section>
 <div class="dos-columnas seccion">
-    <img
-        class="imagen-historia"
-        src="<?= e(url('images/cafe.svg')) ?>"
-        alt="Ilustración de una taza de café"
-        width="600"
-        height="450"
-    >
+    <figure class="nosotros-foto">
+        <img
+            class="imagen-historia"
+            src="<?= e(url('images/nosotros-cafeteria.jpg')) ?>"
+            alt="Interior de una cafetería con barra de madera, lámparas y plantas"
+            width="1600"
+            height="2275"
+            loading="lazy"
+        >
+        <figcaption class="muted">
+            Fotografía de referencia de
+            <a href="https://unsplash.com/photos/black-and-gray-chair-beside-white-table-w9Gzk7aPGfY" target="_blank" rel="noopener noreferrer">Toa Heftiba · Unsplash</a>.
+        </figcaption>
+    </figure>
     <section>
         <p class="etiqueta">NUESTRA HISTORIA</p>
         <h2>Todo empieza con una buena taza</h2>
@@ -4794,7 +4707,13 @@ $mapaIntegrado = Negocio::mapaIntegrado();
         <?php endif; ?>
     </div>
 </div>
-<div class="tabla-contenedor">
+<?php if ($cliente): ?>
+    <p class="muted" role="status" data-pedidos-status>Los estados se actualizan automáticamente.</p>
+<?php endif; ?>
+<div
+    class="tabla-contenedor"
+    <?= $cliente ? 'data-pedidos-url="' . e(url('mis-pedidos/estado')) . '"' : '' ?>
+>
     <table>
         <thead>
             <tr>
@@ -4818,7 +4737,11 @@ $mapaIntegrado = Negocio::mapaIntegrado();
                     ) ?> </td>
                     <td><strong><?= e(bs($pedido['total'])) ?></strong></td>
                     <td>
-                        <span class="estado <?= e($pedido['estado']) ?>"> <?= e(ucfirst($pedido['estado'])) ?> </span>
+                        <span
+                            class="estado <?= e($pedido['estado']) ?>"
+                            data-pedido-estado="<?= e($pedido['id']) ?>"
+                            data-estado="<?= e($pedido['estado']) ?>"
+                        ><?= e(ucfirst($pedido['estado'])) ?></span>
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
@@ -4852,6 +4775,8 @@ $mapaIntegrado = Negocio::mapaIntegrado();
     <div class="acciones">
         <span
             class="estado <?= e($pedido['estado']) ?>"
+            data-pedido-estado="<?= e($pedido['id']) ?>"
+            data-estado="<?= e($pedido['estado']) ?>"
             style="font-size: 0.9rem; padding: 0.4rem 1rem;"
         > <?= e(ucfirst($pedido['estado'])) ?> </span>
         <a
@@ -4861,7 +4786,13 @@ $mapaIntegrado = Negocio::mapaIntegrado();
         > Ver / imprimir factura 📄 </a>
     </div>
 </div>
-<section class="tarjeta">
+<?php if ($cliente): ?>
+    <p class="muted" role="status" data-pedidos-status>El estado se actualiza automáticamente.</p>
+<?php endif; ?>
+<section
+    class="tarjeta"
+    <?= $cliente ? 'data-pedidos-url="' . e(url('mis-pedidos/estado?id=' . $pedido['id'])) . '"' : '' ?>
+>
     <div
         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
         <div>
@@ -11264,11 +11195,18 @@ Para comprobar validaciones, altas administrativas, registro público, cambio de
 
 El código utiliza indentación de cuatro espacios, instrucciones separadas y bloques multilínea. Los nombres de variables describen los datos que contienen. Las vistas conservan sus clases y contenido; las hojas CSS mantienen el diseño. El archivo `.editorconfig` ayuda a conservar este formato en el editor.
 
+La carpeta [`core`](core/README.md) reúne el arranque, el enrutador, la tabla de rutas, el renderizado de vistas y la conexión PDO. `public/index.php` actúa como punto de entrada; los controladores y modelos continúan en `app`.
+
+Los estados del pedido se consultan cada cinco segundos desde **Mis pedidos** y su detalle mediante `GET /mis-pedidos/estado`. La consulta usa el ID de la sesión: cada cliente ve únicamente sus pedidos. Los cambios siguen restringidos al administrador y al personal; las transiciones finales y la reposición única de stock se conservan. La consulta se pausa cuando la pestaña está oculta y avisa si hay pérdida de conexión o caduca la sesión.
+
+La sección **Nosotros** utiliza una fotografía real alojada en `public/images/nosotros-cafeteria.jpg`, con crédito y procedencia en [`public/images/LICENCIAS.md`](public/images/LICENCIAS.md).
+
 Para actualizar la recopilación de código sin crear el ZIP, ejecuta `./generar-entrega.ps1 -SoloCodigo`.
 
 ```text
+├── core/                # Inicio, rutas, enrutador, vistas y conexión PDO
 ├── app/
-│   ├── config/          # Conexión PDO, datos del negocio y configuración
+│   ├── config/          # Datos del negocio y configuración privada
 │   ├── controllers/     # Controladores MVC (Auth, Reportes, Pedidos, Productos, etc.)
 │   ├── helpers/         # Middleware, Validador, Token CSRF, Imágenes, Utilidades
 │   ├── models/          # Modelos de datos con transacciones ACID y SELECT FOR UPDATE
@@ -11303,6 +11241,15 @@ Desarrollado con dedicación para **caffe music bar**.
 ## 94. VERIFICACION.md
 ````text
 # Verificación realizada
+
+## Estado del pedido para el cliente, fotografía y núcleo MVC
+
+- Se comprobó con sesiones de personal y cliente en una base aislada el ciclo pendiente → preparando → entregado. La API, la lista y el detalle del cliente presentan cada cambio. También se comprobó cancelación, reposición de stock una sola vez y rechazo de cambios sobre estados finales.
+- La API de estados ignora propietarios indicados por URL, rechaza pedidos ajenos y conserva los permisos por rol. El cliente no puede cambiar el estado de su pedido.
+- La prueba JavaScript ejecuta el archivo de actualización automática y verifica cambio de texto y clase, conservación del último estado ante pérdida de conexión, pausa en pestaña oculta y detención por sesión caducada.
+- Nosotros sirve una fotografía JPEG real de Toa Heftiba, alojada localmente, con crédito y enlace a la licencia. Se inspeccionó la imagen descargada y se verificó su respuesta HTTP; se utiliza como referencia y no como fotografía del establecimiento.
+- El núcleo MVC queda en `core`: arranque, carga de clases, aplicación, rutas, enrutador, vistas y conexión. La conexión anterior de `app/config/Conexion.php` se trasladó a `core/Conexion.php`. Los scripts que cargan `Funciones.php` siguen funcionando.
+- Tras la reorganización pasaron las pruebas HTTP de usuarios, respuestas, compras y facturas, además de pedidos, permisos, concurrencia y música. El esquema de la base no cambió.
 
 ## Respuestas, compras del administrador, red local y factura
 
@@ -11507,7 +11454,7 @@ $files = @(
     'public/index.php'
     'public/.htaccess'
     'app/config/Config.php'
-    'app/config/Conexion.php'
+    'core/Conexion.php'
     'app/config/local.example.php'
     'app/config/datos-negocio.php'
     'app/helpers/Funciones.php'
@@ -11617,6 +11564,16 @@ $files = @(
     'public/css/factura.css'
     'tests/importe-literal.php'
     'tests/impresion.js'
+    'core/Aplicacion.php'
+    'core/Autocargador.php'
+    'core/Enrutador.php'
+    'core/README.md'
+    'core/Vista.php'
+    'core/inicio.php'
+    'core/rutas.php'
+    'public/images/LICENCIAS.md'
+    'public/js/pedidos.js'
+    'tests/pedidos.js'
 )
 $text = New-Object System.Text.StringBuilder
 [void]$text.AppendLine('# CafeBar MVC: construccion y codigo completo')
@@ -11669,7 +11626,11 @@ $zipPath = Join-Path (Split-Path $project -Parent) 'cafebar-mvc-entrega.zip'
 $zipStream = [IO.File]::Open($zipPath, [IO.FileMode]::Create, [IO.FileAccess]::ReadWrite)
 $zip = New-Object IO.Compression.ZipArchive($zipStream, [IO.Compression.ZipArchiveMode]::Create)
 try {
-    foreach ($file in ($files + @('CODIGO-COMPLETO.md', 'public/images/wego-hero.png', 'public/fonts/nunito-variable.ttf'))) {
+    $imagenes = Get-ChildItem -LiteralPath (Join-Path $project 'public/images') -File | Where-Object { $_.Extension -in @('.jpg', '.jpeg', '.png', '.webp') }
+    $archivosImagen = $imagenes | ForEach-Object { 'public/images/' + $_.Name }
+    $archivosZip = $files + @('CODIGO-COMPLETO.md', 'public/fonts/nunito-variable.ttf') + $archivosImagen
+
+    foreach ($file in $archivosZip) {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $project $file), ('cafebar-mvc/' + $file)) | Out-Null
     }
 }
@@ -12309,6 +12270,24 @@ fieldset {
     border-top: 1px solid var(--line);
     margin-top: 1.25rem;
     padding-top: 1.25rem;
+}
+
+.nosotros-foto {
+    margin: 0;
+    min-width: 0;
+}
+
+.nosotros-foto .imagen-historia {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.nosotros-foto figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.7rem;
 }
 
 .mensajes-grid article > form {
@@ -18183,6 +18162,122 @@ try {
         'empleado mantiene la restricción de compra'
     );
 
+    $paginaPersonal = solicitar('/admin/pedidos', $personal);
+    $csrfPersonal = token($paginaPersonal);
+    $idCliente = (int) $pedidoCliente['id'];
+    $estado = solicitar('/mis-pedidos/estado?id=' . $idCliente, $cliente);
+    $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        $estado['status'] === 200 && $json['pedidos'][0]['estado'] === 'pendiente',
+        'cliente consulta el estado pendiente de su pedido'
+    );
+    $listado = solicitar('/mis-pedidos', $cliente);
+    $detalle = solicitar('/pedido?id=' . $idCliente, $cliente);
+    comprobar(
+        str_contains($listado['html'], 'js/pedidos.js?v=1') &&
+            str_contains($detalle['html'], 'data-pedidos-url='),
+        'lista y detalle del cliente incluyen actualización automática'
+    );
+
+    $ajeno = solicitar('/mis-pedidos/estado?id=' . $pedidoAdmin['id'], $cliente);
+    comprobar($ajeno['status'] === 404, 'cliente no consulta el estado de pedidos ajenos');
+    $ajeno = solicitar('/mis-pedidos/estado?usuario_id=1', $cliente);
+    $json = json_decode($ajeno['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        count($json['pedidos']) === 1 && (int) $json['pedidos'][0]['id'] === $idCliente,
+        'la URL no puede cambiar el propietario consultado'
+    );
+    comprobar(
+        solicitar('/mis-pedidos/estado', $personal)['status'] === 403,
+        'el endpoint personal conserva las restricciones de rol'
+    );
+
+    $denegado = solicitar('/admin/pedidos/estado', $cliente, [
+        'csrf' => token($detalle),
+        'id' => $idCliente,
+        'estado' => 'entregado'
+    ]);
+    comprobar($denegado['status'] === 403, 'el cliente no cambia el estado de su propio pedido');
+
+    foreach (['preparando', 'entregado'] as $nuevoEstado) {
+        solicitar('/admin/pedidos/estado', $personal, [
+            'csrf' => $csrfPersonal,
+            'id' => $idCliente,
+            'estado' => $nuevoEstado
+        ]);
+        $estado = solicitar('/mis-pedidos/estado?id=' . $idCliente, $cliente);
+        $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+        $listado = solicitar('/mis-pedidos', $cliente);
+        $detalle = solicitar('/pedido?id=' . $idCliente, $cliente);
+        $patron = '/data-pedido-estado="' . $idCliente . '"\s+data-estado="' . $nuevoEstado . '"/';
+        comprobar(
+            $json['pedidos'][0]['estado'] === $nuevoEstado &&
+                preg_match($patron, $listado['html']) === 1 &&
+                preg_match($patron, $detalle['html']) === 1,
+            'cambio del personal visible para el cliente en API, lista y detalle: ' . $nuevoEstado
+        );
+    }
+
+    solicitar('/admin/pedidos/estado', $personal, [
+        'csrf' => $csrfPersonal,
+        'id' => $idCliente,
+        'estado' => 'pendiente'
+    ]);
+    $estado = solicitar('/mis-pedidos/estado?id=' . $idCliente, $cliente);
+    $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        $json['pedidos'][0]['estado'] === 'entregado',
+        'estado final entregado no se revierte'
+    );
+
+    $pagina = solicitar('/carrito', $cliente);
+    preg_match('/name="token"\s+value="([^"]+)"/', $pagina['html'], $pedidoToken);
+    solicitar('/carrito/confirmar', $cliente, [
+        'csrf' => token($pagina),
+        'token' => $pedidoToken[1],
+        'items' => '{"1":1}'
+    ]);
+    $ultimoPedido = (int) $lector
+        ->query('SELECT MAX(id) FROM pedidos WHERE usuario_id=' . (int) $u['id'])
+        ->fetchColumn();
+    $stockTrasCompra = (int) $lector
+        ->query('SELECT stock FROM productos WHERE id=1')
+        ->fetchColumn();
+    foreach ([1, 2] as $intento) {
+        solicitar('/admin/pedidos/estado', $personal, [
+            'csrf' => $csrfPersonal,
+            'id' => $ultimoPedido,
+            'estado' => 'cancelado'
+        ]);
+    }
+    $estado = solicitar('/mis-pedidos/estado?id=' . $ultimoPedido, $cliente);
+    $json = json_decode($estado['html'], true, 32, JSON_THROW_ON_ERROR);
+    comprobar(
+        $json['pedidos'][0]['estado'] === 'cancelado' &&
+            (int) $lector->query('SELECT stock FROM productos WHERE id=1')->fetchColumn() ===
+                $stockTrasCompra + 1,
+        'cancelación visible al cliente y reposición de stock una sola vez'
+    );
+
+    $nosotros = solicitar('/nosotros', $visitante);
+    $foto = solicitar('/images/nosotros-cafeteria.jpg', $visitante);
+    comprobar(
+        $nosotros['status'] === 200 &&
+            str_contains($nosotros['html'], 'images/nosotros-cafeteria.jpg') &&
+            substr($foto['html'], 0, 3) === "\xff\xd8\xff",
+        'Nosotros muestra una fotografía JPEG real servida localmente'
+    );
+    $archivoConexion = (new ReflectionClass(Conexion::class))->getFileName();
+    comprobar(
+        str_replace('\\', '/', $archivoConexion) ===
+            str_replace('\\', '/', $raiz . '/core/Conexion.php'),
+        'la aplicación utiliza la conexión de la carpeta core'
+    );
+    comprobar(
+        solicitar('/core/Conexion.php', $visitante)['status'] === 404,
+        'el núcleo no queda expuesto como archivo público'
+    );
+
     echo 'Base aislada conservada: ' . $nombreDb . PHP_EOL;
 } finally {
     proc_terminate($proceso);
@@ -18797,5 +18892,600 @@ assert.equal(typeof imprimir, 'function');
 imprimir();
 assert.equal(impresiones, 1);
 console.log('OK botón data-print abre la impresión mediante JavaScript externo');
+
+````
+
+## 118. core/Aplicacion.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+final class Aplicacion
+{
+    public function ejecutar(): void
+    {
+        $this->prepararSesion();
+        $ruta = $this->rutaActual();
+        $this->enviarEncabezados($ruta);
+
+        try {
+            $enrutador = new Enrutador(require __DIR__ . '/rutas.php');
+            $enrutador->despachar($_SERVER['REQUEST_METHOD'], $ruta);
+        } catch (DomainException $error) {
+            if (http_response_code() < 400) {
+                http_response_code(422);
+            }
+
+            if ($ruta === '/mis-pedidos/estado') {
+                jsonRespuesta(['error' => $error->getMessage()], http_response_code());
+            }
+
+            vista('publico/error', ['mensaje' => $error->getMessage()]);
+        } catch (JsonException $error) {
+            http_response_code(422);
+            vista('publico/error', ['mensaje' => 'El carrito contiene un formato inválido.']);
+        } catch (Throwable $error) {
+            error_log((string) $error);
+            http_response_code(500);
+
+            if (in_array($ruta, ['/admin/indicadores', '/mis-pedidos/estado'], true)) {
+                jsonRespuesta(['error' => 'Servicio no disponible.'], 500);
+            }
+
+            vista('publico/error', [
+                'mensaje' =>
+                    'No se pudo completar la solicitud. Revisa la conexión o el registro del servidor.'
+            ]);
+        }
+    }
+
+    private function prepararSesion(): void
+    {
+        ini_set('display_errors', '0');
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+
+        $almacenamiento = dirname(__DIR__) . '/storage';
+
+        foreach (['sessions', 'limites', 'tmp'] as $carpeta) {
+            $ruta = $almacenamiento . '/' . $carpeta;
+
+            if (!is_dir($ruta) && !mkdir($ruta, 0700, true) && !is_dir($ruta)) {
+                http_response_code(503);
+                exit('No se pudo preparar el almacenamiento privado.');
+            }
+        }
+
+        session_save_path($almacenamiento . '/sessions');
+        session_name('cafebar_session');
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => BASE_URL ?: '/',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+
+        if (!session_start()) {
+            http_response_code(503);
+            exit('No se pudo iniciar la sesión.');
+        }
+    }
+
+    private function rutaActual(): string
+    {
+        $direccion = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
+        $direccion = rawurldecode($direccion);
+        $direccion = substr($direccion, strlen(BASE_URL));
+
+        return '/' . trim($direccion, '/');
+    }
+
+    private function enviarEncabezados(string $ruta): void
+    {
+        $youtubePermitido = $ruta === '/admin/musica/reproductor';
+        $scriptsPermitidos = "'self'";
+        $marcosPermitidos = 'https://maps.google.com https://www.google.com';
+
+        if ($youtubePermitido) {
+            $scriptsPermitidos .= ' https://www.youtube.com https://s.ytimg.com';
+            $marcosPermitidos .= ' https://www.youtube.com https://www.youtube-nocookie.com';
+        }
+
+        header(
+            "Content-Security-Policy: default-src 'self'; script-src $scriptsPermitidos; " .
+                "style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self'; " .
+                "frame-src $marcosPermitidos; object-src 'none'; base-uri 'self'; " .
+                "frame-ancestors 'none'; form-action 'self'"
+        );
+        header('X-Content-Type-Options: nosniff');
+        header('Referrer-Policy: same-origin');
+        header('Cache-Control: no-store');
+    }
+}
+
+````
+
+## 119. core/Autocargador.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+final class Autocargador
+{
+    private static bool $registrado = false;
+
+    public static function registrar(): void
+    {
+        if (self::$registrado) {
+            return;
+        }
+
+        spl_autoload_register([self::class, 'cargar']);
+        self::$registrado = true;
+    }
+
+    public static function cargar(string $clase): void
+    {
+        if (!preg_match('/^[A-Za-z]+$/D', $clase)) {
+            return;
+        }
+
+        $raiz = dirname(__DIR__);
+        $carpetas = ['core', 'app/config', 'app/helpers', 'app/models', 'app/controllers'];
+
+        foreach ($carpetas as $carpeta) {
+            $archivo = $raiz . '/' . $carpeta . '/' . $clase . '.php';
+
+            if (is_file($archivo)) {
+                require_once $archivo;
+                return;
+            }
+        }
+    }
+}
+
+````
+
+## 120. core/Enrutador.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+final class Enrutador
+{
+    private array $rutas;
+
+    public function __construct(array $rutas)
+    {
+        $this->rutas = $rutas;
+    }
+
+    public function despachar(string $metodoHttp, string $direccion): void
+    {
+        $destino = $this->rutas[$metodoHttp . ' ' . $direccion] ?? null;
+
+        if ($destino === null) {
+            http_response_code(404);
+            vista('publico/error', ['mensaje' => 'La página solicitada no existe.']);
+            return;
+        }
+
+        $claseControlador = $destino[0];
+        $metodo = $destino[1];
+        $controlador = new $claseControlador();
+        $controlador->$metodo();
+    }
+}
+
+````
+
+## 121. core/README.md
+````text
+# Núcleo MVC
+
+Esta carpeta contiene la infraestructura común de la aplicación. Las reglas del negocio siguen en `app/controllers` y `app/models`.
+
+| Archivo | Responsabilidad |
+|---|---|
+| `inicio.php` | Configura la zona horaria interna y registra el cargador de clases. |
+| `Autocargador.php` | Busca clases en `core` y en las carpetas de `app`. |
+| `Aplicacion.php` | Prepara sesiones, encabezados de seguridad y manejo de errores. |
+| `rutas.php` | Relaciona cada método HTTP y dirección con un controlador y una acción. |
+| `Enrutador.php` | Busca la ruta y ejecuta la acción del controlador. |
+| `Vista.php` | Carga la plantilla pública o administrativa y la vista solicitada. |
+| `Conexion.php` | Abre la conexión PDO y ejecuta consultas preparadas. |
+
+## Recorrido de una solicitud
+
+1. `public/index.php` carga el inicio del núcleo y las funciones auxiliares.
+2. `Aplicacion` prepara la sesión y recibe la dirección solicitada.
+3. `Enrutador` busca la dirección en `rutas.php`.
+4. El controlador consulta el modelo y presenta una vista o una respuesta JSON.
+
+Ejemplos de rutas actuales:
+
+```php
+'GET /mis-pedidos' => [PedidoController::class, 'mios'],
+'GET /mis-pedidos/estado' => [PedidoController::class, 'estados'],
+'POST /admin/pedidos/estado' => [PedidoController::class, 'estado'],
+```
+
+El cliente puede leer el estado de sus pedidos. Los cambios de estado requieren una cuenta administrativa o de personal y un token CSRF válido.
+
+La configuración privada de MySQL permanece en `app/config/local.php`, excluida de Git. El directorio público continúa siendo `public`; `core` no se publica como carpeta de archivos.
+
+````
+
+## 122. core/Vista.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+final class Vista
+{
+    public static function mostrar(string $archivo, array $datos = [], bool $panel = false): void
+    {
+        extract($datos, EXTR_SKIP);
+        $actual = AuthMiddleware::usuario();
+        $aviso = $_SESSION['flash'] ?? null;
+        unset($_SESSION['flash']);
+
+        $plantilla = $panel ? 'admin' : 'publico';
+        require dirname(__DIR__) . '/app/views/layouts/' . $plantilla . '.php';
+    }
+}
+
+````
+
+## 123. core/inicio.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+date_default_timezone_set('UTC');
+
+require_once __DIR__ . '/Autocargador.php';
+Autocargador::registrar();
+
+````
+
+## 124. core/rutas.php
+````php
+<?php
+
+declare(strict_types = 1);
+
+return [
+    'GET /' => [PublicoController::class, 'inicio'],
+    'GET /nosotros' => [PublicoController::class, 'nosotros'],
+    'GET /productos' => [PublicoController::class, 'productos'],
+    'GET /contactos' => [PublicoController::class, 'contactos'],
+    'POST /contactos' => [PublicoController::class, 'enviar'],
+    'GET /acceder' => [AuthController::class, 'acceder'],
+    'POST /acceder' => [AuthController::class, 'login'],
+    'GET /registro' => [AuthController::class, 'registro'],
+    'POST /registro' => [AuthController::class, 'registrar'],
+    'POST /salir' => [AuthController::class, 'salir'],
+    'GET /carrito' => [CarritoController::class, 'index'],
+    'POST /carrito/confirmar' => [CarritoController::class, 'confirmar'],
+    'GET /admin' => [DashboardController::class, 'index'],
+    'GET /admin/indicadores' => [DashboardController::class, 'indicadores'],
+    'GET /admin/productos' => [ProductoController::class, 'index'],
+    'POST /admin/productos/guardar' => [ProductoController::class, 'guardar'],
+    'POST /admin/productos/eliminar' => [ProductoController::class, 'eliminar'],
+    'GET /admin/categorias' => [CategoriaController::class, 'index'],
+    'POST /admin/categorias/guardar' => [CategoriaController::class, 'guardar'],
+    'POST /admin/categorias/eliminar' => [CategoriaController::class, 'eliminar'],
+    'GET /admin/usuarios' => [UsuarioController::class, 'index'],
+    'POST /admin/usuarios/guardar' => [UsuarioController::class, 'guardar'],
+    'GET /admin/pedidos' => [PedidoController::class, 'index'],
+    'POST /admin/pedidos/estado' => [PedidoController::class, 'estado'],
+    'GET /mis-pedidos' => [PedidoController::class, 'mios'],
+    'GET /mis-pedidos/estado' => [PedidoController::class, 'estados'],
+    'GET /pedido' => [PedidoController::class, 'detalle'],
+    'GET /admin/mensajes' => [MensajeController::class, 'index'],
+    'POST /admin/mensajes/estado' => [MensajeController::class, 'estado'],
+    'POST /admin/mensajes/responder' => [MensajeController::class, 'responder'],
+    'POST /admin/mensajes/eliminar' => [MensajeController::class, 'eliminar'],
+    'GET /mis-mensajes' => [ConsultaController::class, 'mias'],
+    'GET /consulta' => [ConsultaController::class, 'privada'],
+    'GET /admin/reportes' => [ReporteController::class, 'index'],
+    'GET /admin/reportes/csv' => [ReporteController::class, 'csv'],
+    'GET /admin/factura' => [ReporteController::class, 'factura'],
+    'GET /factura' => [ReporteController::class, 'facturaCliente'],
+    'GET /perfil' => [PerfilController::class, 'index'],
+    'POST /perfil' => [PerfilController::class, 'guardar'],
+    'GET /musica' => [MusicaController::class, 'index'],
+    'GET /musica/estado' => [MusicaController::class, 'estado'],
+    'POST /musica/sugerir' => [MusicaController::class, 'sugerir'],
+    'POST /admin/musica/agregar' => [MusicaController::class, 'agregar'],
+    'POST /admin/musica/moderar' => [MusicaController::class, 'moderar'],
+    'POST /admin/musica/encolar' => [MusicaController::class, 'encolar'],
+    'POST /admin/musica/activar' => [MusicaController::class, 'activar'],
+    'GET /admin/musica/reproductor' => [MusicaController::class, 'reproductor'],
+    'POST /admin/musica/control' => [MusicaController::class, 'control']
+];
+
+````
+
+## 125. public/images/LICENCIAS.md
+````text
+# Fotografías incorporadas
+
+## Nosotros: interior de cafetería
+
+- Archivo local: `nosotros-cafeteria.jpg`.
+- Autor: **Toa Heftiba**.
+- Fotografía original: [Black and gray chair beside white table](https://unsplash.com/photos/black-and-gray-chair-beside-white-table-w9Gzk7aPGfY).
+- Fuente del archivo: `https://images.unsplash.com/photo-1604601398877-6247e2f56de0?auto=format&fit=crop&fm=jpg&q=85&w=1600`.
+- Licencia consultada: [Unsplash License](https://unsplash.com/license).
+- La página de la fotografía la identifica como una fotografía publicada el 5 de noviembre de 2020, tomada con una Sony ILCE-6300.
+- Uso: fotografía real de referencia para la sección Nosotros. No se presenta como fotografía del establecimiento Coffe Music Bar.
+
+La imagen está alojada localmente. El navegador no necesita conectarse a Unsplash para cargarla.
+
+````
+
+## 126. public/js/pedidos.js
+````javascript
+'use strict';
+
+(() => {
+    const pagina = document.querySelector('[data-pedidos-url]');
+    if (!pagina) {
+        return;
+    }
+
+    const aviso = document.querySelector('[data-pedidos-status]');
+    const etiquetas = {
+        pendiente: 'Pendiente',
+        preparando: 'Preparando',
+        entregado: 'Entregado',
+        cancelado: 'Cancelado'
+    };
+
+    let temporizador;
+    let activa = true;
+    let consultando = false;
+
+    function informar(texto) {
+        if (aviso && aviso.textContent !== texto) {
+            aviso.textContent = texto;
+        }
+    }
+
+    async function actualizar() {
+        if (!activa || consultando) {
+            return;
+        }
+
+        clearTimeout(temporizador);
+        if (document.hidden) {
+            temporizador = setTimeout(actualizar, 5000);
+            return;
+        }
+
+        consultando = true;
+        const control = new AbortController();
+        const espera = setTimeout(() => control.abort(), 8000);
+
+        try {
+            const respuesta = await fetch(pagina.dataset.pedidosUrl, {
+                cache: 'no-store',
+                signal: control.signal,
+                headers: { Accept: 'application/json' }
+            });
+
+            if (respuesta.redirected) {
+                activa = false;
+                informar('Tu sesión terminó. Vuelve a iniciar sesión para actualizar tus pedidos.');
+                return;
+            }
+
+            if (
+                !respuesta.ok ||
+                !respuesta.headers.get('content-type')?.includes('application/json')
+            ) {
+                throw new Error('No se pudo consultar el estado.');
+            }
+
+            const datos = await respuesta.json();
+            if (!Array.isArray(datos.pedidos)) {
+                throw new Error('Respuesta de pedidos inválida.');
+            }
+
+            const estados = new Map(
+                datos.pedidos.map((pedido) => [String(pedido.id), pedido.estado])
+            );
+            const cambios = [];
+
+            document.querySelectorAll('[data-pedido-estado]').forEach((elemento) => {
+                const id = elemento.dataset.pedidoEstado;
+                const estado = estados.get(id);
+                if (!Object.hasOwn(etiquetas, estado) || elemento.dataset.estado === estado) {
+                    return;
+                }
+
+                elemento.classList.remove(...Object.keys(etiquetas));
+                elemento.classList.add(estado);
+                elemento.dataset.estado = estado;
+                elemento.textContent = etiquetas[estado];
+                cambios.push('Pedido #' + id + ': ' + etiquetas[estado]);
+            });
+
+            informar(
+                cambios.length ? cambios.join('. ') : 'Estados al día. Se revisan cada 5 segundos.'
+            );
+        } catch {
+            informar('Sin actualización. Los estados visibles pueden estar desactualizados.');
+        } finally {
+            clearTimeout(espera);
+            consultando = false;
+            if (activa) {
+                temporizador = setTimeout(actualizar, 5000);
+            }
+        }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            actualizar();
+        }
+    });
+
+    window.addEventListener('pagehide', () => {
+        activa = false;
+        clearTimeout(temporizador);
+    });
+
+    window.addEventListener('pageshow', (evento) => {
+        if (evento.persisted) {
+            activa = true;
+            actualizar();
+        }
+    });
+
+    actualizar();
+})();
+
+````
+
+## 127. tests/pedidos.js
+````javascript
+'use strict';
+
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+
+async function comprobarActualizacion() {
+    const clases = new Set(['estado', 'pendiente']);
+    const etiqueta = {
+        dataset: { pedidoEstado: '42', estado: 'pendiente' },
+        textContent: 'Pendiente',
+        classList: {
+            remove(...nombres) {
+                nombres.forEach((nombre) => clases.delete(nombre));
+            },
+            add(nombre) {
+                clases.add(nombre);
+            }
+        }
+    };
+    const aviso = { textContent: '' };
+    const pagina = { dataset: { pedidosUrl: '/mis-pedidos/estado?id=42' } };
+    const eventos = {};
+    const tiempos = new Map();
+    let siguienteTiempo = 0;
+    let estadoServidor = 'pendiente';
+    let sinConexion = false;
+    let sesionTerminada = false;
+    let consultas = 0;
+
+    const documento = {
+        hidden: false,
+        querySelector(selector) {
+            return selector === '[data-pedidos-url]' ? pagina : aviso;
+        },
+        querySelectorAll() {
+            return [etiqueta];
+        },
+        addEventListener(nombre, accion) {
+            eventos[nombre] = accion;
+        }
+    };
+
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../public/js/pedidos.js'), 'utf8'), {
+        document: documento,
+        window: {
+            addEventListener(nombre, accion) {
+                eventos[nombre] = accion;
+            }
+        },
+        AbortController,
+        setTimeout(accion, espera) {
+            const id = ++siguienteTiempo;
+            tiempos.set(id, { accion, espera });
+            return id;
+        },
+        clearTimeout(id) {
+            tiempos.delete(id);
+        },
+        async fetch(url, opciones) {
+            consultas++;
+            assert.equal(url, '/mis-pedidos/estado?id=42');
+            assert.equal(opciones.cache, 'no-store');
+            if (sinConexion) {
+                throw new Error('Sin red');
+            }
+            return {
+                ok: true,
+                redirected: sesionTerminada,
+                headers: {
+                    get() {
+                        return 'application/json';
+                    }
+                },
+                async json() {
+                    return { pedidos: [{ id: 42, estado: estadoServidor }] };
+                }
+            };
+        }
+    });
+
+    const esperarRespuesta = () => new Promise(setImmediate);
+    async function siguienteConsulta() {
+        const turno = [...tiempos.entries()].find(([, tiempo]) => tiempo.espera === 5000);
+        assert.ok(turno, 'Debe programarse la siguiente consulta');
+        tiempos.delete(turno[0]);
+        await turno[1].accion();
+    }
+
+    await esperarRespuesta();
+    assert.equal(etiqueta.textContent, 'Pendiente');
+    estadoServidor = 'preparando';
+    await siguienteConsulta();
+    assert.equal(etiqueta.textContent, 'Preparando');
+    assert.ok(clases.has('preparando') && !clases.has('pendiente'));
+
+    sinConexion = true;
+    await siguienteConsulta();
+    assert.equal(etiqueta.textContent, 'Preparando');
+    assert.match(aviso.textContent, /desactualizados/);
+
+    sinConexion = false;
+    estadoServidor = 'entregado';
+    documento.hidden = true;
+    const anteriores = consultas;
+    await siguienteConsulta();
+    assert.equal(consultas, anteriores);
+    documento.hidden = false;
+    eventos.visibilitychange();
+    await esperarRespuesta();
+    assert.equal(etiqueta.textContent, 'Entregado');
+
+    estadoServidor = '<script>alert(1)</script>';
+    await siguienteConsulta();
+    assert.equal(etiqueta.textContent, 'Entregado');
+
+    sesionTerminada = true;
+    await siguienteConsulta();
+    assert.match(aviso.textContent, /sesión terminó/);
+    assert.equal([...tiempos.values()].filter((tiempo) => tiempo.espera === 5000).length, 0);
+
+    console.log('OK estados en pantalla, pérdida de conexión, pestaña oculta y sesión caducada');
+}
+
+comprobarActualizacion().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+});
 
 ````
