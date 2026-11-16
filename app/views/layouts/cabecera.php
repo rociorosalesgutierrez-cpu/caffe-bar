@@ -14,5 +14,6 @@
 <script src="<?= e(url('js/musica.js?v=4')) ?>" defer></script>
 <?php endif ?>
 <?php if($archivo==='admin/reproductor'): ?><script src="<?= e(url('js/reproductor.js?v=4')) ?>" defer></script><?php endif ?>
-<script src="<?= e(url('js/app.js?v=4')) ?>" defer></script>
+<link rel="stylesheet" href="<?= e(url('css/responsive.css?v=1')) ?>">
+<script src="<?= e(url('js/app.js?v=5')) ?>" defer></script>
 <script src="<?= e(url('js/carrito.js?v=3')) ?>" defer></script>

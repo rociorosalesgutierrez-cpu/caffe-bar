@@ -17,7 +17,7 @@
 
 <!-- Filtros de fecha y estado -->
 <form class="filtros" method="get" action="<?= e(url('admin/reportes')) ?>">
-  <div class="campos-dos" style="grid-column: 1 / 3;">
+  <div class="campos-dos filtros-fechas">
     <label>
       Desde
       <input type="date" name="desde" value="<?= e($desde) ?>" required>

@@ -1,0 +1,69 @@
+/* Ajustes compartidos, posteriores a los temas y al reproductor. */
+.hero > *, .dos-columnas > *, .auth-grid > *, .gestion-grid > *,
+.filtros > *, .pie-grid > *, .musica-actual > div {
+  min-width: 0;
+}
+.tarjeta, .producto-info, .sidebar-perfil, .mapa-texto {
+  overflow-wrap: anywhere;
+}
+fieldset { min-width: 0; }
+.tabla-contenedor { max-width: 100%; }
+.filtros-fechas { grid-column: 1 / -1; }
+.sidebar { overflow-y: auto; }
+#youtube-contenedor { min-width: 0; }
+
+@media (max-width: 1200px) {
+  /* La navegación de clientes autenticados contiene más enlaces. */
+  .menu-toggle { display: inline-flex; }
+  .cabecera nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    padding: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    flex-wrap: wrap;
+    max-height: 65vh;
+    max-height: 65dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .cabecera nav.abierto { display: flex; }
+}
+
+@media (max-width: 700px) {
+  .cabecera { gap: .5rem; }
+  .cabecera .logo { min-width: 0; }
+  .cabecera-acciones { flex-shrink: 0; }
+  .menu-toggle, .theme-rotator { min-width: 44px; min-height: 44px; }
+  .cabecera nav a, .cabecera nav .enlace { min-height: 44px; }
+  .acciones, .catalogo-meta, .producto-titulo, .producto-final {
+    flex-wrap: wrap;
+  }
+  .pagina-hero h1, .panel-main h1, .formulario-central h1 {
+    font-size: clamp(2rem, 8vw, 3rem);
+    overflow-wrap: anywhere;
+  }
+  .hero h1 { font-size: clamp(2.2rem, 10vw, 4.5rem); }
+  .sidebar { overflow-y: visible; }
+  .sidebar > .logo { padding-right: 3rem; }
+  .sidebar nav a { min-height: 44px; }
+  .reproductor { padding: 1rem; }
+  #youtube-contenedor, #youtube-local, #youtube-contenedor iframe {
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+}
+
+@media (max-width: 360px) {
+  .cabecera { padding-inline: .6rem; }
+  .cabecera .logo { gap: .4rem; }
+  .cabecera .marca-texto { font-size: 1.15rem; }
+  .cabecera .marca-subtitulo { letter-spacing: .12em; }
+  .cabecera-acciones { gap: .3rem; }
+  .categorias-grid { grid-template-columns: 1fr; }
+}
