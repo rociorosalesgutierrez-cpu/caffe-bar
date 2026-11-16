@@ -2,6 +2,14 @@
 declare(strict_types=1);
 final class Imagen
 {
+    public static function producto(array $producto): string {
+        $ruta=$producto['imagen']??'';
+        if($ruta!==''&&!in_array($ruta,['images/cafe.svg','images/jugo.svg','images/postre.svg','images/sandwich.svg'],true))return $ruta;
+        $nombre=strtolower(strtr($producto['nombre'],['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','Á'=>'a','É'=>'e','Í'=>'i','Ó'=>'o','Ú'=>'u']));
+        $fotos=['espresso'=>'espresso','capuchino'=>'capuchino','latte'=>'latte','naranja'=>'jugo-naranja','jugo de frutos'=>'jugo-frutos-rojos','chocolate'=>'torta-chocolate','cheesecake'=>'cheesecake','pollo'=>'sandwich-pollo','vegetariano'=>'sandwich-vegetariano'];
+        foreach($fotos as $palabra=>$foto)if(str_contains($nombre,$palabra))return 'images/'.$foto.'.jpg';
+        return match($ruta){'images/jugo.svg'=>'images/jugo-naranja.jpg','images/postre.svg'=>'images/torta-chocolate.jpg','images/sandwich.svg'=>'images/sandwich-pollo.jpg',default=>'images/espresso.jpg'};
+    }
     public static function guardar(array $archivo): ?string {
         if(($archivo['error']??UPLOAD_ERR_NO_FILE)===UPLOAD_ERR_NO_FILE)return null;
         if(!isset($archivo['error'])||is_array($archivo['error'])||$archivo['error']!==UPLOAD_ERR_OK||($archivo['size']??0)>4*1024*1024)throw new DomainException('La imagen no debe superar 4 MB y debe subirse correctamente.');

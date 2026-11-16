@@ -2,68 +2,10 @@
 <div class="hero-visual"><div class="foto-marco"><img class="hero-foto" src="<?= e(url('images/wego-hero.png')) ?>" alt="Café latte y un croissant en una mesa cálida, imagen conceptual de Coffe Music Bar" width="1122" height="1402" fetchpriority="high"><span class="foto-indice">UN SORBO. UNA CANCIÓN. TU MOMENTO.</span><div class="foto-caption"><span>LO BUENO SE DISFRUTA SIN PRISA</span><strong>Quédate por otra canción.</strong></div></div><div class="sello" aria-hidden="true">COFFE<br><span>&</span><br>GOOD VIBES</div><span class="hero-vertical" aria-hidden="true">COFFE MUSIC BAR — DISFRUTA EL MOMENTO</span></div></section>
 <div class="banda-valores"><span><b aria-hidden="true">✦</b> Café con carácter</span><span><b aria-hidden="true">✦</b> Sabores para compartir</span><span><b aria-hidden="true">♫</b> El ritmo lo pones tú</span><span><b aria-hidden="true">✦</b> Un ratito para ti</span></div>
 
-<!-- Sección Tocadiscos y Vinilo en Vivo: Reproducción simulada con nombre de artista -->
-<section class="seccion tocadiscos-seccion" id="reproductor-vivo">
-  <div class="tarjeta tocadiscos-card">
-    <div class="tocadiscos-contenedor">
-      <!-- Plato del Tocadiscos con Vinilo Giratorio -->
-      <div class="tocadiscos-plato" id="tocadiscos-plato">
-        <div class="tocadiscos-brazo" id="tocadiscos-brazo" aria-hidden="true"></div>
-        <div class="disco-vinilo girando" id="disco-vinilo" aria-label="Disco de vinilo girando con música del local">
-          <div class="vinilo-surcos"></div>
-          <div class="vinilo-etiqueta">
-            <span class="vinilo-logo">caffe music</span>
-            <span class="vinilo-centro"></span>
-            <strong class="vinilo-artista" id="vinilo-artista-label">Frank Sinatra</strong>
-            <small class="vinilo-cancion" id="vinilo-cancion-label">Fly Me to the Moon</small>
-          </div>
-        </div>
-      </div>
-
-      <!-- Información de la Pista y Controles -->
-      <div class="tocadiscos-info">
-        <div class="en-vivo-badge">
-          <span class="punto-vivo"></span>
-          <span>SONANDO AHORA EN EL LOCAL</span>
-        </div>
-
-        <h2 class="pista-activa-titulo" id="reproductor-titulo">Fly Me to the Moon</h2>
-        <p class="pista-activa-artista" id="reproductor-artista">Frank Sinatra</p>
-        <span class="pista-activa-genero" id="reproductor-genero">Classic Jazz & Coffee Lounge · 1964</span>
-
-        <!-- Ecualizador de ondas animado -->
-        <div class="ecualizador-ondas" id="ecualizador-ondas" aria-hidden="true">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-
-        <!-- Barra de progreso -->
-        <div class="progreso-contenedor">
-          <span id="tiempo-actual">1:24</span>
-          <div class="barra-progreso">
-            <div class="barra-progreso-fill" id="progreso-fill" style="width: 42%;"></div>
-          </div>
-          <span id="tiempo-total">3:30</span>
-        </div>
-
-        <!-- Botones de Control Interactivos -->
-        <div class="controles-reproductor">
-          <button type="button" class="btn-control" id="btn-prev" title="Canción anterior" aria-label="Canción anterior">⏮</button>
-          <button type="button" class="btn-control btn-play" id="btn-toggle-play" title="Pausar o reproducir" aria-label="Pausar o reproducir">
-            <span id="play-icon">⏸</span>
-          </button>
-          <button type="button" class="btn-control" id="btn-next" title="Siguiente canción" aria-label="Siguiente canción">⏭</button>
-          <span class="separador-control"></span>
-          <button type="button" class="btn-control" id="btn-sound" title="Sonido ambiente de cafetería" aria-label="Sonido ambiente">
-            <span id="sound-icon">🔊</span>
-          </button>
-          <span class="estado-reproduccion" id="estado-texto">Vinilo girando en vivo</span>
-        </div>
-
-        <p class="muted" style="margin-top: 1.2rem; font-size: 0.82rem;">
-          ♫ Cada visita a <strong>caffe music bar</strong> tiene su propia banda sonora. ¿Quieres elegir? <a class="texto-link" href="<?= e(url('musica')) ?>">Pide tu canción aquí →</a>
-        </p>
-      </div>
-    </div>
+<section class="seccion" aria-labelledby="musica-inicio-titulo">
+  <div class="tarjeta musica-invitacion">
+    <div><p class="etiqueta">LA BANDA SONORA DE TU PAUSA</p><h2 id="musica-inicio-titulo">Recomienda tu pr&oacute;xima canci&oacute;n.</h2><p class="muted">Consulta la cola y env&iacute;a tu sugerencia. El administrador o el personal del local revisan las canciones y controlan la reproducci&oacute;n.</p></div>
+    <a class="boton" href="<?= e(url('musica')) ?>">Ver m&uacute;sica y sugerir <span aria-hidden="true">&#8599;</span></a>
   </div>
 </section>
 <section class="seccion categorias-inicio" aria-labelledby="categorias-titulo"><div class="titulo-seccion"><div><p class="etiqueta">SIGUE TU ANTOJO</p><h2 id="categorias-titulo">¿A qué sabe tu plan?</h2></div><span class="muted">Algo rico para cada momento.</span></div><div class="categorias-grid"><?php foreach($categorias as $indice=>$c): ?><a class="categoria-tile" href="<?= e(url('productos?categoria='.$c['id'])) ?>"><span class="categoria-numero"><?= e(str_pad((string)($indice+1),2,'0',STR_PAD_LEFT)) ?></span><strong><?= e($c['nombre']) ?></strong><span class="categoria-flecha" aria-hidden="true">↗</span></a><?php endforeach ?></div></section>

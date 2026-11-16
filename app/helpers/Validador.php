@@ -6,7 +6,8 @@ final class Validador
         $v=$d[$k]??null;
         if(!is_string($v))throw new DomainException('Campo inválido: '.$k);
         $v=trim($v);
-        if(!preg_match('//u',$v)||mb_strlen($v)<$min||mb_strlen($v)>$max||preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/',$v))throw new DomainException('Revisa el campo '.$k.' ('.$min.'–'.$max.' caracteres).');
+        $longitud=preg_match_all('/./us',$v);
+        if($longitud===false||$longitud<$min||$longitud>$max||preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/',$v))throw new DomainException('Revisa el campo '.$k.' ('.$min.'–'.$max.' caracteres).');
         return $v;
     }
     public static function entero(array $d,string $k,int $min=1,int $max=2147483647): int {

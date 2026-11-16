@@ -13,11 +13,10 @@ Sistema web MVC para cafetería, bar y restaurante desarrollado con arquitectura
    - Logotipo vectorial oficial del oso tomando café con tipografía en bloque multilínea `caffe music bar`.
    - Rotador de temas Claro / Oscuro con Material Design 3 y función nativa `light-dark()` sin recargar página.
 
-2. **Tocadiscos en Vivo con Vinilo Giratorio y Nombre del Artista:**
-   - Simulación realista de tornamesa con brazo fonocaptor articulado, surcos de vinilo y ecualizador animado.
-   - **El nombre del artista gira continuamente sobre la etiqueta central del vinilo** a 360° en tiempo real.
-   - Controles de reproducción, cambio de pista, barra de progreso y sonido ambiental de aguja de vinilo vía *Web Audio API*.
-   - Mini reproductor flotante sincronizado en todas las páginas públicas y en el panel de transmisión del local.
+2. **Sugerencias musicales y reproducción en el local:**
+   - Los clientes envían recomendaciones y consultan la canción actual, la cola y el estado de sus sugerencias.
+   - El administrador y el personal revisan las sugerencias y controlan el reproductor del local.
+   - Las páginas públicas y de clientes no incluyen controles de reproducción ni audio simulado.
 
 3. **Carta del Menú con Fotografía Real en Alta Definición:**
    - 9 productos gastronómicos con fotos reales de autor (espresso, capuchino, latte, jugo de naranja natural, jugo de frutos rojos, torta de chocolate, cheesecake de frutos rojos, sándwich de pollo y sándwich vegetariano).

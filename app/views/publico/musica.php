@@ -1,14 +1,7 @@
 <section class="pagina-hero compacta"><p class="etiqueta">EL RITMO TAMBIÉN LO PONES TÚ</p><h1>Tu café.<br><em>Tu próxima canción.</em></h1><p>Sugiere lo que te gustaría escuchar en el local. Nuestro equipo revisará tu elección y la añadirá a la cola.</p></section>
-<section class="tarjeta musica-actual" data-musica-estado="<?= e(url('musica/estado')) ?>" style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
-  <div class="disco-vinilo girando" style="width: 84px; height: 84px; margin: 0; flex-shrink: 0;" aria-hidden="true">
-    <div class="vinilo-surcos"></div>
-    <div class="vinilo-etiqueta" style="width: 40px; height: 40px; padding: 2px;">
-      <span class="vinilo-centro" style="width: 6px; height: 6px;"></span>
-      <strong class="vinilo-artista" id="musica-disco-artista" style="font-size: 0.42rem; max-width: 36px; bottom: 6px;"><?= e($estado['actual']['artista']??'Caffe Bar') ?></strong>
-    </div>
-  </div>
+<section class="tarjeta musica-actual" data-musica-estado="<?= e(url('musica/estado')) ?>">
   <span class="ecualizador" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-  <div style="flex: 1; min-width: 200px;">
+  <div class="musica-actual-info">
     <p class="etiqueta">SELECCIONADA EN EL REPRODUCTOR DEL LOCAL</p>
     <strong id="musica-actual-titulo"><?= e($estado['actual']['titulo']??'El local aún no ha iniciado el reproductor') ?></strong>
     <p id="musica-actual-artista"><?= e($estado['actual']['artista']??'Mientras tanto, deja tu sugerencia.') ?></p>

@@ -15,15 +15,4 @@
 <div class="pie-legal"><span>© <?= date('Y') ?> Coffe Music Bar</span><span>Precios en bolivianos · Hecho para disfrutar</span><a href="#contenido">Volver arriba ↑</a></div></div></footer>
 <?php if($whatsapp): ?><a class="whatsapp-flotante" href="<?= e($whatsapp) ?>" target="_blank" rel="noopener noreferrer" aria-label="Contactar a Coffe Music Bar por WhatsApp"><svg viewBox="0 0 32 32" width="25" height="25" fill="none" aria-hidden="true"><path d="M27 15a11 11 0 0 1-16.5 9.5L5 26l1.5-5.5A11 11 0 1 1 27 15Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 9c-3 2 0 8 4 10s6 1 5-2l-3-1-1 2c-3-1-5-3-6-6l2-1-1-2Z" fill="currentColor"/></svg><span>Hablemos</span></a><?php endif ?>
 
-<!-- Mini reproductor flotante de vinilo con nombre del artista -->
-<aside class="mini-reproductor-flotante" id="mini-reproductor" aria-label="Música sonando en caffe music bar">
-  <div class="mini-disco girando" id="mini-disco" title="Disco de vinilo girando en vivo">
-    <div class="mini-vinilo-centro"></div>
-  </div>
-  <div class="mini-texto">
-    <strong id="mini-pista-artista">Frank Sinatra</strong>
-    <span id="mini-pista-titulo">Fly Me to the Moon</span>
-  </div>
-  <button type="button" class="mini-play-btn" id="mini-btn-play" title="Pausar o reproducir" aria-label="Pausar o reproducir">⏸</button>
-</aside>
 </body></html>

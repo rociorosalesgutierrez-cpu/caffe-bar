@@ -4,11 +4,11 @@
       class="producto"
       data-product-card
       data-category="<?= e($p['categoria_id']) ?>"
-      data-name="<?= e(mb_strtolower($p['nombre'])) ?>"
+      data-name="<?= e($p['nombre']) ?>"
     >
       <div class="producto-imagen">
         <img
-          src="<?= e(url($p['imagen'])) ?>"
+          src="<?= e(url(Imagen::producto($p))) ?>"
           alt="<?= e($p['nombre']) ?>"
           loading="lazy"
           width="600"

@@ -11,6 +11,15 @@ fieldset { min-width: 0; }
 .filtros-fechas { grid-column: 1 / -1; }
 .sidebar { overflow-y: auto; }
 #youtube-contenedor { min-width: 0; }
+.musica-invitacion { display: flex; align-items: center; gap: 2rem; }
+.musica-invitacion > div { flex: 1; min-width: 0; }
+.musica-invitacion h2 { font-size: clamp(1.7rem, 3vw, 2.4rem); }
+.musica-invitacion p:last-child { margin-bottom: 0; }
+.musica-invitacion > a { flex-shrink: 0; }
+.favoritos .titulo-seccion h2 { font-size: clamp(1.9rem, 4vw, 3rem); }
+.favoritos .producto { width: 100%; }
+.producto-imagen { flex-shrink: 0; }
+.musica-actual .musica-actual-info { flex: 1 1 12rem; min-width: 0; }
 
 @media (max-width: 1200px) {
   /* La navegación de clientes autenticados contiene más enlaces. */
@@ -36,6 +45,10 @@ fieldset { min-width: 0; }
 }
 
 @media (max-width: 700px) {
+  .musica-invitacion { flex-direction: column; align-items: stretch; gap: 1.25rem; }
+  .musica-invitacion > a { text-align: center; }
+  .favoritos .productos-grid { grid-template-columns: 1fr; }
+  .favoritos .producto:last-child:nth-child(3) { grid-column: auto; max-width: none; }
   .cabecera { gap: .5rem; }
   .cabecera .logo { min-width: 0; }
   .cabecera-acciones { flex-shrink: 0; }
