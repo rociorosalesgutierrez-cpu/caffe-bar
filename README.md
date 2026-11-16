@@ -83,6 +83,18 @@ Sistema web MVC para cafetería, bar y restaurante desarrollado con arquitectura
 
 ---
 
+### Recuperar una cuenta local de MySQL perdida
+
+Si Inicio, La carta o el inicio de sesión devuelven error 500 y MySQL indica `Access denied`, comprueba la cuenta definida en `app/config/local.php`. Si esa cuenta fue creada por el instalador y ya no existe en MySQL, ejecuta:
+
+```powershell
+php database/instalar.php --repair-user
+```
+
+La reparación necesita acceso de mantenimiento al MySQL local (por defecto, `root` sin contraseña en XAMPP; las credenciales se pueden configurar con `CAFEBAR_INSTALL_USER` y `CAFEBAR_INSTALL_PASSWORD`). Recupera la cuenta con los permisos `SELECT`, `INSERT`, `UPDATE` y `DELETE` sobre `cafebar_mvc`, y comprueba la conexión. Conserva las tablas, los datos y las credenciales de `local.php`. Si la cuenta ya existe, se detiene sin cambiar su contraseña o permisos. No vuelvas a importar el SQL para resolver este error.
+
+`app/config/local.php` está excluido de Git: las credenciales y la reparación de MySQL son locales; el repositorio conserva la herramienta para recuperarlas.
+
 ## 👥 Credenciales de Acceso de Demostración
 
 | Rol | Usuario | Contraseña |
