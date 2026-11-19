@@ -48,6 +48,18 @@
             >
             <button id="checkout-button">Confirmar pedido ↗</button>
         </form>
+        <?php if ($whatsappPedido = Negocio::whatsapp()): ?>
+            <a
+                id="whatsapp-checkout"
+                class="boton boton-whatsapp"
+                href="<?= e($whatsappPedido) ?>"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-wa-base="<?= e(strtok($whatsappPedido, '?')) ?>"
+                aria-disabled="true"
+                tabindex="-1"
+            >Enviar pedido por WhatsApp ↗</a>
+        <?php endif; ?>
         <a href="<?= e(url('productos')) ?>">Seguir eligiendo</a>
     </section>
 </div>

@@ -129,6 +129,25 @@
         document.querySelector('#cart-items').value = JSON.stringify(
             Object.fromEntries(Object.entries(cart).map(([id, p]) => [id, p.quantity]))
         );
+        const whatsapp = document.querySelector('#whatsapp-checkout');
+        if (whatsapp) {
+            const lines = Object.values(cart).map((p) =>
+                `• ${p.quantity} x ${p.name} — ${money(p.price * p.quantity)}`
+            );
+            const message = [
+                'Hola, caffe music bar. Quisiera realizar este pedido:',
+                '',
+                ...lines,
+                '',
+                `Total estimado: ${money(total)}`,
+                'Pedido para atención en el local. Por favor, confirmen disponibilidad y total.'
+            ].join('\n');
+            whatsapp.href = whatsapp.dataset.waBase + '?text=' + encodeURIComponent(message);
+            whatsapp.setAttribute('aria-disabled', empty ? 'true' : 'false');
+            whatsapp.tabIndex = empty ? -1 : 0;
+            whatsapp.style.pointerEvents = empty ? 'none' : '';
+            whatsapp.style.opacity = empty ? '0.55' : '';
+        }
     }
     document.querySelectorAll('[data-add]').forEach((button) =>
         button.addEventListener('click', () => {
